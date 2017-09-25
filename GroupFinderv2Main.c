@@ -787,6 +787,30 @@ int main(int argc, char **argv){
 
 		printf("%d groups, %d n = 1 groups, fsat = %.2f\n", ngrp, k, nsat_tot*1./nsample);
 
+		for(i = 1; i <= ngrp; ++i){
+			group_index[i] = i;
+		}
+
+		// Sort this iteration's groups by mass (descending).
+
+		for(i = 1; i <= ngrp; ++i)
+			group_luminosity[i] *= -1;
+		sort2(ngrp, group_luminosity, group_index);
+		for(i = 1; i <= ngrp; ++i)
+			group_luminosity[i] *= -1;
+
+		// Now perform abundance matchig on this new set of groups. Must first determine new group centres based on updated group composition, however.
+
+		j = 0;
+		for(i = 1; i <= ngrp; ++i){
+			igrp = group_index[i];
+			k = group_center[igrp];
+
+			// What's the new group center?
+
+			if()
+		}
+
 	}
 
 }
