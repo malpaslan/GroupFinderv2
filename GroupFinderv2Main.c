@@ -5,6 +5,9 @@
 
 // Redshifts should be kept in velocity space for computations (for now).
 
+// For self: compile command --
+// gcc -o gfv2 GroupFinderv2Main.c *.o -L/Users/mehmet/Dropbox/libC_main -lC_main -Wall
+
 // Initialization //
 
 #include <stdlib.h>
@@ -64,6 +67,7 @@ float distance_redshift(float z);
 float angular_separation(float a1, float d1, float a2, float d2);
 float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total);
 float radial_probability(float mass, float dr, float rad, float ang_rad);
+int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity);
 
 // Global variables go here
 
@@ -75,12 +79,12 @@ float GALAXY_DENSITY, MSTARLIM, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 
 int main(int argc, char **argv){
 
-	int i, j, k, igrp, ngal, nsample, count;
+	int i, j, k, igrp, ngal, nsample, count, imax;
 	int *indx, *collision, *ka;
 	int *group_member, *group_index, *group_center, *temp_group;
 	int nsat_tot, ngrp, xngrp, niter, niter_max, ngrp_temp;
 	float *ra, *dec, *redshift, *mag_g, *mag_r, *v_max, *m_stellar, *Hdelta, *Dn4000, *luminosity, *Rexp, *sSFR, *sersic, *velDisp, *sNr, *petroRad;
-	float *mass, *rad, *angRad, *sigma, *prob_total, *nsat_indi;
+	float *mass, *rad, *angRad, *sigma, *prob_total, *nsat_indi, maxlum;
 	float *group_luminosity;
 	float x1, x2, *tempArray;
 	float volume;
@@ -799,7 +803,7 @@ int main(int argc, char **argv){
 		for(i = 1; i <= ngrp; ++i)
 			group_luminosity[i] *= -1;
 
-		// Now perform abundance matchig on this new set of groups. Must first determine new group centres based on updated group composition, however.
+		// Now perform abundance matching on this new set of groups. Must first determine new group centres based on updated group composition, however.
 
 		j = 0;
 		for(i = 1; i <= ngrp; ++i){
@@ -809,13 +813,36 @@ int main(int argc, char **argv){
 			// What's the new group center?
 
 			if(nsat_indi[k] > 2){
-				j = central_galaxy(k, ra, dec, redshift, mag_r, angRad[k], sigma[k], group_member, indx, nsample, angRad[k], mass[k], igrp, luminosity, &nsat_indi[k], i, prob_total);
+				j = central_galaxy(k, ra, dec, group_member, nsample, k, angRad[k], luminosity);
+			}
+			if(j != k){
+				group_center[igrp] = j;
+				k = j;
 			}
 
+		// New group centres have now been identified. Time to SHAM!
+
+		mass[k] = density2host_halo(i/volume);
+		rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
+		angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
+		sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
+
+		// Identify most massive galaxy in group.
+
+		maxlum = 0;
+		for(j = 1; j <= ngal; ++j){
+			if(group_member[j] == igrp){
+				if(luminosity[j] > maxlum){
+					maxlum = luminosity[j];
+					imax = j;
+				}
+			}
 		}
 
-	}
+		printf("Iteration %d complete!\n", niter);
 
+		}
+	}
 }
 
 // ** End of main program. **
@@ -834,8 +861,7 @@ float distance_redshift(float z) {
 	return x;
 }
 
-float angular_separation(float a1, float d1, float a2, float d2)
-{
+float angular_separation(float a1, float d1, float a2, float d2){
  // float cd1,cd2,sd1,sd2,ca1a2,sa1a2;
 
   return atan((sqrt(cos(d2)*cos(d2)*sin(a2-a1)*sin(a2-a1) + 
@@ -843,8 +869,7 @@ float angular_separation(float a1, float d1, float a2, float d2)
 	      (sin(d1)*sin(d2) + cos(d1)*cos(d2)*cos(a2-a1)));
 }
 
-float radial_probability(float mass, float dr, float rad, float ang_rad)
-{
+float radial_probability(float mass, float dr, float rad, float ang_rad){
   float c, x, rs, delta, f;
 
   dr = dr*rad/ang_rad;
@@ -954,54 +979,53 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 
 }
 
-int central_galaxy(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, 
-		 float x1, int *group_member, int *indx, int ngal, float radius, float mass, 
-		 int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total)
-{
-  int ii[10000], icnt, j, imax, j1, icen;
-  float pot[10000], theta, maxpot, x2;
-  
-  icen = i;
+int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity){
 
-  // find the galaxies in this group.
-  icnt = 0;
-  for(i=1;i<=ngal;++i)
-    {
-      if(group_member[i]==igrp)
-	{
-	  icnt++;
-	  ii[icnt] = i;
+	int j, ii[10000], icnt, k, imax, l, icen;
+	float pot[10000], theta, maxpot, angDist;
+	  
+	// This function identifies the central galaxy in a group by identifying the most massive galaxy. 
+
+	icen = i;
+
+	// Begin with target group, and find all galaxies within it by scanning the group_member array.
+
+	icnt = 0;
+	for(i = 1; i <= ngal; ++i){
+		if(group_member[i] == igrp){
+		icnt++;
+		ii[icnt] = i;
+		}
 	}
+
+	// Perform a double sum of mass to get the 'potential' of each galaxy.
+
+  	for(k = 1; k <= icnt; ++k)
+		pot[k] = 0;
+
+	for(k = 1; k <= icnt; ++k){
+		i = ii[k];
+  		for(l = k+1; l <= icnt; ++l){
+			j = ii[l];
+			angDist = angular_separation(ra[i], dec[i], ra[j], dec[j]);
+			theta = sqrt((angDist * angDist) + ((radius * radius) / 400.0));
+			pot[k] += (luminosity[i] * luminosity[j]) / theta;
+			pot[l] += (luminosity[i] * luminosity[j]) / theta;
+			}
+    	}
+
+	// Which galaxy member has the highest potential? This is considered to be the central galaxy.
+
+	maxpot = 0;
+	for(k = 1; k <= icnt; ++k){
+    	i = ii[k];
+      	//printf("%d %d %d %f %f %f %f %d\n",k,i,icen,ra[i],dec[i],pot[k],maxpot,imax);
+      	if(pot[k] > maxpot){ 
+      		maxpot = pot[k]; 
+      		imax = i;
+      }
     }
 
-  // now do double-sum to get "potential"
-  for(i1=1;i1<=icnt;++i1)
-    pot[i1] = 0;
-
-  for(i1=1;i1<=icnt;++i1)
-    {
-      for(j1=i1+1;j1<=icnt;++j1)
-	{
-	  i = ii[i1];
-	  j = ii[j1];
-	  x2 = theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
-	  theta = sqrt(theta*theta + radius*radius/400.0);
-	  pot[i1] += luminosity[i]*luminosity[j]/theta;
-	  pot[j1] += luminosity[i]*luminosity[j]/theta;
-	  //if(i1==25 || j1==25)
-	  //printf("POT %d %d %e %e %e %e\n",i1,j1,theta,radius/20.0,x2,luminosity[i]*luminosity[j]/theta);
-	}
-    }
-
-  // find the member with largest potential
-  maxpot = 0;
-  for(i1=1;i1<=icnt;++i1)
-    {
-      i = ii[i1];
-      //printf("%d %d %d %f %f %f %f %d\n",i1,i,icen,ra[i],dec[i],pot[i1],maxpot,imax);
-      if(pot[i1]>maxpot) { maxpot = pot[i1]; imax = i; }
-    }
-
-  return imax;
+	return imax;
 
 }
