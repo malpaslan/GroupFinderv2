@@ -820,28 +820,28 @@ int main(int argc, char **argv){
 				k = j;
 			}
 
-		// New group centres have now been identified. Time to SHAM!
+			// New group centres have now been identified. Time to SHAM!
 
-		mass[k] = density2host_halo(i/volume);
-		rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
-		angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
-		sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
+			mass[k] = density2host_halo(i/volume);
+			rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
+			angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
+			sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
 
-		// Identify most massive galaxy in group.
-
-		maxlum = 0;
-		for(j = 1; j <= ngal; ++j){
-			if(group_member[j] == igrp){
-				if(luminosity[j] > maxlum){
-					maxlum = luminosity[j];
-					imax = j;
+			// Identify most massive galaxy in group.
+			
+			maxlum = 0;
+			for(j = 1; j <= ngal; ++j){
+				if(group_member[j] == igrp){
+					if(luminosity[j] > maxlum){
+						maxlum = luminosity[j];
+						imax = j;
+					}
 				}
 			}
 		}
+		
+	printf("Iteration %d complete!\n", niter);
 
-		printf("Iteration %d complete!\n", niter);
-
-		}
 	}
 }
 
