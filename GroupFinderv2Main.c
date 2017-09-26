@@ -808,7 +808,10 @@ int main(int argc, char **argv){
 
 			// What's the new group center?
 
-			if()
+			if(nsat_indi[k] > 2){
+				j = central_galaxy(k, ra, dec, redshift, mag_r, angRad[k], sigma[k], group_member, indx, nsample, angRad[k], mass[k], igrp, luminosity, &nsat_indi[k], i, prob_total);
+			}
+
 		}
 
 	}
@@ -948,5 +951,57 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	grp_lum /= vol_corr;
 
 	return(grp_lum);
+
+}
+
+int central_galaxy(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, 
+		 float x1, int *group_member, int *indx, int ngal, float radius, float mass, 
+		 int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total)
+{
+  int ii[10000], icnt, j, imax, j1, icen;
+  float pot[10000], theta, maxpot, x2;
+  
+  icen = i;
+
+  // find the galaxies in this group.
+  icnt = 0;
+  for(i=1;i<=ngal;++i)
+    {
+      if(group_member[i]==igrp)
+	{
+	  icnt++;
+	  ii[icnt] = i;
+	}
+    }
+
+  // now do double-sum to get "potential"
+  for(i1=1;i1<=icnt;++i1)
+    pot[i1] = 0;
+
+  for(i1=1;i1<=icnt;++i1)
+    {
+      for(j1=i1+1;j1<=icnt;++j1)
+	{
+	  i = ii[i1];
+	  j = ii[j1];
+	  x2 = theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+	  theta = sqrt(theta*theta + radius*radius/400.0);
+	  pot[i1] += luminosity[i]*luminosity[j]/theta;
+	  pot[j1] += luminosity[i]*luminosity[j]/theta;
+	  //if(i1==25 || j1==25)
+	  //printf("POT %d %d %e %e %e %e\n",i1,j1,theta,radius/20.0,x2,luminosity[i]*luminosity[j]/theta);
+	}
+    }
+
+  // find the member with largest potential
+  maxpot = 0;
+  for(i1=1;i1<=icnt;++i1)
+    {
+      i = ii[i1];
+      //printf("%d %d %d %f %f %f %f %d\n",i1,i,icen,ra[i],dec[i],pot[i1],maxpot,imax);
+      if(pot[i1]>maxpot) { maxpot = pot[i1]; imax = i; }
+    }
+
+  return imax;
 
 }
