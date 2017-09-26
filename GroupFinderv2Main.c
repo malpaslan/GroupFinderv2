@@ -82,7 +82,7 @@ int main(int argc, char **argv){
 	int i, j, k, igrp, ngal, nsample, count, imax;
 	int *indx, *collision, *ka;
 	int *group_member, *group_index, *group_center, *temp_group;
-	int nsat_tot, ngrp, xngrp, niter, niter_max, ngrp_temp;
+	int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
 	float *ra, *dec, *redshift, *mag_g, *mag_r, *v_max, *m_stellar, *Hdelta, *Dn4000, *luminosity, *Rexp, *sSFR, *sersic, *velDisp, *sNr, *petroRad;
 	float *mass, *rad, *angRad, *sigma, *prob_total, *nsat_indi, maxlum;
 	float *group_luminosity;
@@ -704,7 +704,6 @@ int main(int argc, char **argv){
 	// Now repeat the abundance matching, but this time use total group mass instead.
 
 	j = 0;
-	xngrp = 0;
 	for(j = 1; j <= ngrp; ++j){
 		i = group_center[j];
 		mass[i] = density2host_halo(j/volume);
@@ -830,7 +829,7 @@ int main(int argc, char **argv){
 			// Identify most massive galaxy in group.
 			
 			maxlum = 0;
-			for(j = 1; j <= ngal; ++j){
+			for(j = 1; j <= nsample; ++j){
 				if(group_member[j] == igrp){
 					if(luminosity[j] > maxlum){
 						maxlum = luminosity[j];
@@ -839,7 +838,7 @@ int main(int argc, char **argv){
 				}
 			}
 		}
-		
+
 	printf("Iteration %d complete!\n", niter);
 
 	}
