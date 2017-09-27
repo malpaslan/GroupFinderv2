@@ -767,14 +767,14 @@ int main(int argc, char **argv){
 			nsat_tot += nsat_indi[i];
 
 		}
-
+		
 		// Some galaxies will now have been newly 'exposed.'
 
+		count = 0;
 		for(i = 1; i <= nsample; ++i){
 			
 			if(group_member[i])
 				continue;
-
 			ngrp++;
 			group_luminosity[ngrp] = m_stellar[i];
 			group_member[i] = ngrp;
@@ -787,7 +787,7 @@ int main(int argc, char **argv){
 				k++;
 			nsat_tot += nsat_indi[i];
 		}
-
+		
 		printf("%d groups, %d n = 1 groups, fsat = %.2f\n", ngrp, k, nsat_tot*1./nsample);
 
 		for(i = 1; i <= ngrp; ++i){
@@ -838,9 +838,6 @@ int main(int argc, char **argv){
 				}
 			}
 		}
-
-	printf("Iteration %d complete!\n", niter);
-
 	}
 }
 
