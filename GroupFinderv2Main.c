@@ -656,9 +656,33 @@ int main(int argc, char **argv){
 
     // ** UNCOMMENT ABOVE TO OUTPUT A FILE WITH ALL THE DATA THAT HAS BEEN READ IN **
 
-    // Create a k-d tree of all sample galaxies. This is used for nearest-neighbour searches later when identifying satellites around centrals.
+    printf("** k-d tree complete. **\n\n");
 
-    printf("Creating k-d tree...\n\n");
+	// Cycle through each galaxy and assign a halo mass to it. This part of the code calls up the density2halo function, which does SHAM to assign a halo mass to each galaxy.
+
+	// This is the initial first pass assignment of masses to galaxies
+
+    j = 0;
+    k = 0;
+
+    for(j = 1; j <= nsample; ++j){
+    	i = indx[j];
+    	ndens_gal += 1/v_max[i];
+    	mass[i] = density2halo(ndens_gal);
+    	rad[i] = pow((3*mass[i]) / (4.0 * pi * dHalo *rhoCrit * omegaM), third);
+    	angRad[i] = rad[i] / distance_redshift(redshift[i]/speedOfLight);
+    	sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i]));
+    }
+    
+	fprintf(stderr, "** Initial assignment of halo masses to galaxies complete. **\n\n");
+
+	//fprintf(stderr, "Number density = %3.3e\n\n",ndens_gal);
+
+	// Now go through and find associated galaxies.
+
+	fprintf(stderr, "** Identifying satellites...\n\n");
+
+	// Create a k-d tree of all sample galaxies. This is used for nearest-neighbour searches later when identifying satellites around centrals.
 
     // k-d tree should have 3 dimensions (RA, Dec, z).
 
@@ -670,7 +694,7 @@ int main(int argc, char **argv){
     	kd_insert3(kd, ra[i], dec[i], redshift[i], 0);
     }
 
- //    // This is just a chunk of code to test if the k-d tree works; delete below.
+     //    // This is just a chunk of code to test if the k-d tree works; delete below.
 
  //    double pt[3] = { ra[1], dec[1], redshift[1]};
  //    double pos[3];
@@ -702,31 +726,6 @@ int main(int argc, char **argv){
 
  //  	// This is just a chunk of code to test if the k-d tree works; delete above.
 
-    printf("k-d tree complete!\n\n");
-
-	// Cycle through each galaxy and assign a halo mass to it. This part of the code calls up the density2halo function, which does SHAM to assign a halo mass to each galaxy.
-
-	// This is the initial first pass assignment of masses to galaxies
-
-    j = 0;
-    k = 0;
-
-    for(j = 1; j <= nsample; ++j){
-    	i = indx[j];
-    	ndens_gal += 1/v_max[i];
-    	mass[i] = density2halo(ndens_gal);
-    	rad[i] = pow((3*mass[i]) / (4.0 * pi * dHalo *rhoCrit * omegaM), third);
-    	angRad[i] = rad[i] / distance_redshift(redshift[i]/speedOfLight);
-    	sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i]));
-    }
-    
-	fprintf(stderr, "** Initial assignment of halo masses to galaxies complete. **\n\n");
-
-	//fprintf(stderr, "Number density = %3.3e\n\n",ndens_gal);
-
-	// Now go through and find associated galaxies.
-
-	fprintf(stderr, "** Identifying satellites...\n\n");
 
 	// Prepare variables/arrays.
 	// igrp is simply the group name. 
@@ -969,7 +968,10 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0;
 	void *set;
 	char *pch;
-	double pos[3];
+	double cen[3];
+    double sat[3];
+    float range = theta_max;
+    double dist;
 	
 	// Set up.
 
@@ -978,10 +980,43 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	*nsat_cur = 0;
 	grp_lum = 0;
 
-	for(k = 1; k <= ngal; ++k){
-		j = indx[k];
+	// Use the k-d tree kd to identify the nearest galaxies to the central.
 
-		// The idea is to loop through every other galaxy in the sample and calculate the probability that it's in the same halo. This normally takes ages, we include some checks.
+	cen[0] = ra[i];
+	cen[1] = dec[i];
+	cen[2] = redshift[i];
+	
+	range = 5.0;
+	set = kd_nearest_range( kd, cen, range );
+
+	// Set now contains the nearest neighbours within a distance range. Grab their info. 
+	// Note that set will ALWAYS contain a node that is the same as the central galaxy (this is a quirk of the code--or me not using it properly--when computing nearest neighbour distances to a point that is already in the k-d tree). Make sure to reject this galaxy.
+
+    while( !kd_res_end( set ) ) {
+
+	    // Get the data and position of the current result item.
+	    pch = (char*)kd_res_item( set, sat );
+	    // printf("%f %f %f\n",sat[0],sat[1],sat[2]);
+
+	    // Move to next item in set. (If this isn't done before the next check and the first dist value is 0, everything gets wonky.)
+	    kd_res_next( set );
+
+	    // sat now contains the RA, Dec, and redshift of the neighbour.
+	    // Check distance, make sure it isn't same galaxy.
+
+	    dist = sqrt( dist_sq( cen, sat, 3 ) );
+
+	    if(dist == 0)
+	    	continue;
+
+	 	// Need to identify index associated with this galaxy.
+
+	    k = 1;
+	    while(sat[0] != ra[k] || sat[1] != dec[k] || sat[2] != redshift[k]){
+	    	k++;
+	    }
+
+	    j = indx[k];
 
 		// Skip if target galaxy is the same as the central (obviously).
 		if(j == i)
@@ -991,29 +1026,6 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 		if(group_member[j]){
 			continue;
 		}
-		
-		// Perform k-d tree nearest neighbour search if galaxy satisfies the previous conditions.
-
-		set = kd_nearest3(kd, 150., -2., 0.1);
-		pch = (char*)kd_res_item( set, pos );
-
-		
-
-		// ** LINEAR SEARCH CODE BELOW **
-		
-		// This chunk of code truncates the full sample of galaxies to a narrow 'window' around the target central galaxy in order to reduce computation time. 
-
-		// dx = fabs(ra[i] - ra[j]);
-		// if(dx > 4*theta_max)
-		// 	continue;
-		// dy = fabs(dec[i] - dec[j]);
-		// if(dy > 4*theta_max)
-		// 	continue;
-		// dz = fabs(redshift[i] - redshift[j]);
-		// if(dz > 6*sigma)
-		// 	continue;
-				
-		// ** LINEAR SEARCH CODE ABOVE **
 
 		theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
 
@@ -1021,7 +1033,9 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 			continue;
 
 		// Now determine the probability of being a satellite (both projected onto the sky, and along the line of sight).
-		dz = 1;
+		dz = fabs(redshift[i] - redshift[j]);
+		if(dz >= 6*sigma)
+			continue;
 		prob_ang = radial_probability(mass, theta, radius, theta_max);
 		prob_rad = (exp(-dz*dz/(2*sigma*sigma)) * speedOfLight) / (rt2Pi*sigma);
 		
@@ -1058,7 +1072,7 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	vol_corr = 1-(0.5*erfc(dz/(root2*sigma)));
 	*nsat_cur /= vol_corr;
 	grp_lum /= vol_corr;
-
+	//printf("%f %f\n",*nsat_cur,grp_lum);
 	return(grp_lum);
 
 }
