@@ -656,8 +656,6 @@ int main(int argc, char **argv){
 
     // ** UNCOMMENT ABOVE TO OUTPUT A FILE WITH ALL THE DATA THAT HAS BEEN READ IN **
 
-    printf("** k-d tree complete. **\n\n");
-
 	// Cycle through each galaxy and assign a halo mass to it. This part of the code calls up the density2halo function, which does SHAM to assign a halo mass to each galaxy.
 
 	// This is the initial first pass assignment of masses to galaxies
@@ -686,13 +684,16 @@ int main(int argc, char **argv){
 
     // k-d tree should have 3 dimensions (RA, Dec, z).
 
-    kd = kd_create(3);
+    kd = kd_create(2);
 
     // Insert points into tree. Each point consists of the 3 identifying coordinates of a galaxy.
-
+    
     for(i = 1; i <= nsample; ++i){
-    	kd_insert3(kd, ra[i], dec[i], redshift[i], 0);
+    	double pt[2] = {ra[i], dec[i]};
+    	assert( kd_insert(kd, pt, 0) == 0);
     }
+
+    printf("** k-d tree complete. **\n\n");
 
      //    // This is just a chunk of code to test if the k-d tree works; delete below.
 
@@ -965,12 +966,11 @@ float radial_probability(float mass, float dr, float rad, float ang_rad){
 
 float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, float sigma, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total, void *kd) {
 	int j, k;
-	float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0;
+	float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0, range;
 	void *set;
 	char *pch;
-	double cen[3];
-    double sat[3];
-    float range = theta_max;
+	double cen[2];
+    double sat[2];
     double dist;
 	
 	// Set up.
@@ -979,32 +979,34 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	dx = 1;
 	*nsat_cur = 0;
 	grp_lum = 0;
+	range = 6*theta_max;
 
 	// Use the k-d tree kd to identify the nearest galaxies to the central.
 
 	cen[0] = ra[i];
 	cen[1] = dec[i];
-	cen[2] = redshift[i];
-	
-	range = 5.0;
-	set = kd_nearest_range( kd, cen, range );
+
+	set = kd_nearest_range(kd, cen, range);
 
 	// Set now contains the nearest neighbours within a distance range. Grab their info. 
 	// Note that set will ALWAYS contain a node that is the same as the central galaxy (this is a quirk of the code--or me not using it properly--when computing nearest neighbour distances to a point that is already in the k-d tree). Make sure to reject this galaxy.
 
-    while( !kd_res_end( set ) ) {
+    while( !kd_res_end(set)) {
 
 	    // Get the data and position of the current result item.
-	    pch = (char*)kd_res_item( set, sat );
-	    // printf("%f %f %f\n",sat[0],sat[1],sat[2]);
+
+	    pch = kd_res_item(set, sat);
+		//printf("%f %f %f\n",sat[0],sat[1],sat[2]);
+	    //printf("%d\n",kd_res_size(set));
 
 	    // Move to next item in set. (If this isn't done before the next check and the first dist value is 0, everything gets wonky.)
-	    kd_res_next( set );
+
+	    kd_res_next(set);
 
 	    // sat now contains the RA, Dec, and redshift of the neighbour.
 	    // Check distance, make sure it isn't same galaxy.
 
-	    dist = sqrt( dist_sq( cen, sat, 3 ) );
+	    dist = sqrt(dist_sq(cen, sat, 2));
 
 	    if(dist == 0)
 	    	continue;
@@ -1012,7 +1014,7 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	 	// Need to identify index associated with this galaxy.
 
 	    k = 1;
-	    while(sat[0] != ra[k] || sat[1] != dec[k] || sat[2] != redshift[k]){
+	    while(sat[0] != ra[k] || sat[1] != dec[k]){
 	    	k++;
 	    }
 
@@ -1027,15 +1029,23 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 			continue;
 		}
 
+		// dx = fabs(ra[i]-ra[j]);
+  //     	if(dx>4*theta_max)
+  //     		continue;
+  //     	dy = fabs(dec[i]-dec[j]);
+  //     	if(dy>4*theta_max)
+  //     		continue;
+      	dz = fabs(redshift[i] - redshift[j]);
+      	if(dz>6*sigma)
+      		continue;
+
 		theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
 
 		if(theta > theta_max)
 			continue;
 
 		// Now determine the probability of being a satellite (both projected onto the sky, and along the line of sight).
-		dz = fabs(redshift[i] - redshift[j]);
-		if(dz >= 6*sigma)
-			continue;
+		
 		prob_ang = radial_probability(mass, theta, radius, theta_max);
 		prob_rad = (exp(-dz*dz/(2*sigma*sigma)) * speedOfLight) / (rt2Pi*sigma);
 		
