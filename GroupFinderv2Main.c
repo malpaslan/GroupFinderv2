@@ -744,6 +744,8 @@ int main(int argc, char **argv){
 	
 	for(i = 1; i <= nsample; ++i){
 		j = indx[i];
+		if(group_member[j])
+			continue;
 		igrp++;
 		group_luminosity[igrp] = m_stellar[i];
 		group_center[igrp] = j;
@@ -794,7 +796,6 @@ int main(int argc, char **argv){
 
 		printf("Iteration %d of %d...\n", niter, niter_max);
 
-		j = 0;
 		for(i = 1; i <= nsample; ++i){
 			if(prob_total[i] >= 0)
 				prob_total[i] = 0.;
@@ -912,6 +913,16 @@ int main(int argc, char **argv){
 				}
 			}
 		}
+
+		// for(i = 1; i <= nsample; ++i){
+		// 	for(j = 1; j <= ngrp; ++j)
+		// 		if(group_index[j] == group_member[i])
+		// 			break;
+		// 	igrp = group_index[j];
+		// 	j = group_center[igrp];
+		// 	theta = angular_separation(ra[i], dec[i], ra[j], dec[j]);
+			
+		// }
 	}
 }
 
