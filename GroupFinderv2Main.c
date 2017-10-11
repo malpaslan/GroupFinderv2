@@ -73,7 +73,7 @@ float angular_separation(float a1, float d1, float a2, float d2);
 float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total, void *kd);
 float radial_probability(float mass, float dr, float rad, float ang_rad);
 int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity);
-static double dist_sq( double *a1, double *a2, int dims );
+//static double dist_sq( double *a1, double *a2, int dims );
 
 unsigned int get_msec(void)
 {
@@ -98,7 +98,7 @@ float GALAXY_DENSITY, MSTARLIM, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 
 int main(int argc, char **argv){
 
-	int i, j, k, igrp, ngal, nsample, count, imax;
+	int i, j, k, igrp, ngal, nsample, count, imax, foo;
 	int *indx, *collision, *ka;
 	int *group_member, *group_index, *group_center, *temp_group;
 	int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
@@ -108,6 +108,8 @@ int main(int argc, char **argv){
 	float *group_luminosity;
 	float x1, x2, *tempArray;
 	float volume;
+	float x, y, z, radius;
+	unsigned int msec, start;
 
 	void *kd;
 
@@ -669,10 +671,10 @@ int main(int argc, char **argv){
     	mass[i] = density2halo(ndens_gal);
     	rad[i] = pow((3*mass[i]) / (4.0 * pi * dHalo *rhoCrit * omegaM), third);
     	angRad[i] = rad[i] / distance_redshift(redshift[i]/speedOfLight);
-    	sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i]));
+    	sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i])*(1+redshift[i]/speedOfLight));
     }
     
-	fprintf(stderr, "** Initial assignment of halo masses to galaxies complete. **\n\n");
+	fprintf(stderr, "** SHAMmed galaxies. **\n\n");
 
 	//fprintf(stderr, "Number density = %3.3e\n\n",ndens_gal);
 
@@ -684,16 +686,20 @@ int main(int argc, char **argv){
 
     // k-d tree should have 3 dimensions (RA, Dec, z).
 
-    kd = kd_create(2);
+    kd = kd_create(3);
 
-    // Insert points into tree. Each point consists of the 3 identifying coordinates of a galaxy.
+    // Insert points into tree. Each point consists of RA and Dec of a galaxy, projected onto a plane using the Hammer projection.
     
     for(i = 1; i <= nsample; ++i){
-    	double pt[2] = {ra[i], dec[i]};
-    	assert( kd_insert(kd, pt, 0) == 0);
-    }
 
-    printf("** k-d tree complete. **\n\n");
+    	radius = distance_redshift(redshift[i]/speedOfLight);
+    	x = radius * cos(ra[i]) * cos(dec[i]);
+    	y = radius * sin(ra[i]) * cos(dec[i]); 
+    	z = radius * sin(dec[i]);
+
+    	double pt[3] = {x, y, z};
+    	assert( kd_insert(kd, pt, (void*)&indx[i]) == 0);
+    }
 
      //    // This is just a chunk of code to test if the k-d tree works; delete below.
 
@@ -741,7 +747,7 @@ int main(int argc, char **argv){
 		prob_total[i] = 0.;
 		group_member[i] = 0;
 	}
-	
+	//start = get_msec();
 	for(i = 1; i <= nsample; ++i){
 		j = indx[i];
 		if(group_member[j])
@@ -761,10 +767,11 @@ int main(int argc, char **argv){
 		nsat_tot += nsat_indi[j] * (1-prob_total[j]);
 		
 	}
-
+	//msec = get_msec() - start;
 	fprintf(stderr, "** First pass satellite identification complete: \n");
 	ngrp = igrp;
 	
+	//printf("%.3f sec\n", (float)msec / 1000.0);
 	printf("%d groups, %d n = 1 groups, fsat = %.2f **\n\n", ngrp, k, nsat_tot*1./nsample);
 
 	// We now have the first iteration of groups. As before, rank these by their group mass.
@@ -794,7 +801,7 @@ int main(int argc, char **argv){
 
 		// Begin by resetting group membership.
 
-		printf("Iteration %d of %d...\n", niter, niter_max);
+		printf("Iteration %d of %d... \n", niter, niter_max);
 
 		for(i = 1; i <= nsample; ++i){
 			if(prob_total[i] >= 0)
@@ -818,15 +825,17 @@ int main(int argc, char **argv){
 		// Reset complete!
 
 		// Perform satellite identification for current iteration of the groups.
-
+		foo = 0;
 		for(j = 1; j <= ngrp_temp; ++j){
 
 			i = temp_group[j];
 
 			// Is this galaxy a group member? If so, skip!
-
-			if(group_member[i] > 0)
+			// printf("%d %d\n",i, group_member[i]);
+			if(group_member[i] > 0){
 				continue;
+			}
+
 			ngrp++;
 			group_luminosity[ngrp] = m_stellar[i];
 			group_member[i] = ngrp;
@@ -839,9 +848,8 @@ int main(int argc, char **argv){
 				k++;
 
 			nsat_tot += nsat_indi[i];
-
 		}
-		
+	
 		// Some galaxies will now have been newly 'exposed.'
 
 		count = 0;
@@ -893,7 +901,7 @@ int main(int argc, char **argv){
 				group_center[igrp] = j;
 				k = j;
 			}
-
+			
 			// New group centres have now been identified. Time to SHAM!
 
 			mass[k] = density2host_halo(i/volume);
@@ -914,15 +922,15 @@ int main(int argc, char **argv){
 			}
 		}
 
-		// for(i = 1; i <= nsample; ++i){
-		// 	for(j = 1; j <= ngrp; ++j)
-		// 		if(group_index[j] == group_member[i])
-		// 			break;
-		// 	igrp = group_index[j];
-		// 	j = group_center[igrp];
-		// 	theta = angular_separation(ra[i], dec[i], ra[j], dec[j]);
+		for(i = 1; i <= nsample; ++i){
+			for(j = 1; j <= ngrp; ++j)
+				if(group_index[j] == group_member[i])
+					break;
+			igrp = group_index[j];
+			j = group_center[igrp];
+			//theta = angular_separation(ra[i], dec[i], ra[j], dec[j]);
 			
-		// }
+		}
 	}
 }
 
@@ -978,11 +986,11 @@ float radial_probability(float mass, float dr, float rad, float ang_rad){
 float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, float sigma, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total, void *kd) {
 	int j, k;
 	float dx, dy, dz, theta, prob_ang, vol_corr, prob_rad, grp_lum, p0, range;
+	float cenDist;
 	void *set;
-	char *pch;
-	double cen[2];
-    double sat[2];
-    double dist;
+	int *pch;
+	double cen[3];
+    double sat[3];
 	
 	// Set up.
 
@@ -990,13 +998,18 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	dx = 1;
 	*nsat_cur = 0;
 	grp_lum = 0;
-	range = 6*theta_max;
+	
 
 	// Use the k-d tree kd to identify the nearest galaxies to the central.
 
-	cen[0] = ra[i];
-	cen[1] = dec[i];
+	cenDist = distance_redshift(redshift[i]/speedOfLight);
+	cen[0] = cenDist * cos(ra[i]) * cos(dec[i]);
+	cen[1] = cenDist * sin(ra[i]) * cos(dec[i]); 
+	cen[2] = cenDist * sin(dec[i]);
 
+	// Nearest neighbour search should go out to about 4*sigma, the velocity dispersion of the SHAMed halo.
+
+	range = distance_redshift(((4*sigma))/speedOfLight);
 	set = kd_nearest_range(kd, cen, range);
 
 	// Set now contains the nearest neighbours within a distance range. Grab their info. 
@@ -1004,36 +1017,22 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 
     while( !kd_res_end(set)) {
 
-	    // Get the data and position of the current result item.
+	    // Get the data and position of the current result item. Data contains index of galaxy.
 
-	    pch = kd_res_item(set, sat);
-		//printf("%f %f %f\n",sat[0],sat[1],sat[2]);
-	    //printf("%d\n",kd_res_size(set));
+	    pch = (int*)kd_res_item(set, sat);
+	    k = *pch;
 
 	    // Move to next item in set. (If this isn't done before the next check and the first dist value is 0, everything gets wonky.)
 
 	    kd_res_next(set);
 
-	    // sat now contains the RA, Dec, and redshift of the neighbour.
-	    // Check distance, make sure it isn't same galaxy.
-
-	    dist = sqrt(dist_sq(cen, sat, 2));
-
-	    if(dist == 0)
-	    	continue;
-
-	 	// Need to identify index associated with this galaxy.
-
-	    k = 1;
-	    while(sat[0] != ra[k] || sat[1] != dec[k]){
-	    	k++;
-	    }
-
 	    j = indx[k];
 
+
 		// Skip if target galaxy is the same as the central (obviously).
-		if(j == i)
+		if(j == i){
 		 	continue;
+		}
 
 		// Skip if already assigned to a central.
 		if(group_member[j]){
@@ -1047,8 +1046,9 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
   //     	if(dy>4*theta_max)
   //     		continue;
       	dz = fabs(redshift[i] - redshift[j]);
-      	if(dz>6*sigma)
-      		continue;
+      	// if(dz>6*sigma)
+      	// 	continue;
+      	
 
 		theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
 
@@ -1100,8 +1100,8 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 
 int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity){
 
-	int j, ii[10000], icnt, k, imax, l, icen;
-	float pot[10000], theta, maxpot, angDist;
+	int j, ii[100000], icnt, k, imax, l, icen;
+	float pot[100000], theta, maxpot, angDist;
 	  
 	// This function identifies the central galaxy in a group by identifying the most massive galaxy. 
 
@@ -1123,8 +1123,8 @@ int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, in
 		pot[k] = 0;
 
 	for(k = 1; k <= icnt; ++k){
-		i = ii[k];
   		for(l = k+1; l <= icnt; ++l){
+  			i = ii[k];
 			j = ii[l];
 			angDist = angular_separation(ra[i], dec[i], ra[j], dec[j]);
 			theta = sqrt((angDist * angDist) + ((radius * radius) / 400.0));
@@ -1149,12 +1149,12 @@ int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, in
 
 }
 
-static double dist_sq( double *a1, double *a2, int dims ) {
-  double dist_sq = 0, diff;
-  while( --dims >= 0 ) {
-    diff = (a1[dims] - a2[dims]);
-    dist_sq += diff*diff;
-  }
-  return dist_sq;
-}
+// static double dist_sq( double *a1, double *a2, int dims ) {
+//   double dist_sq = 0, diff;
+//   while( --dims >= 0 ) {
+//     diff = (a1[dims] - a2[dims]);
+//     dist_sq += diff*diff;
+//   }
+//   return dist_sq;
+// }
 
