@@ -109,7 +109,7 @@ int main(int argc, char **argv){
 	float x1, x2, *tempArray;
 	float volume;
 	float x, y, z, radius;
-	unsigned int msec, start;
+//	unsigned int msec, start;
 
 	void *kd;
 
