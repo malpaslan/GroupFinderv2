@@ -131,7 +131,7 @@ int main(int argc, char **argv){
 
 	// Start by reading in data. At first only read in bare minimum to establish a volume limited sample; then read in everything else.
 
-	fprintf(stderr,"\n** Reading in data and defining sample. **\n");
+	printf("\n** Reading in data and defining sample. **\n");
 
 	// Import VAGC main catalogue (RA, Dec, z). 
 	// Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
@@ -140,7 +140,7 @@ int main(int argc, char **argv){
 
 	fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-      fprintf(stderr,"ERROR opening [%s]\n",ff);
+      printf("ERROR opening [%s]\n",ff);
       exit(0);
     }
 
@@ -174,7 +174,7 @@ int main(int argc, char **argv){
   	}
 
   	fclose(fp);
-  	fprintf(stderr, "Astrometry read in.\n");
+  	printf("Astrometry read in.\n");
 
   	// Import photometry (mag_r, mag_g).
 
@@ -182,7 +182,7 @@ int main(int argc, char **argv){
 
 	fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
 
@@ -191,7 +191,7 @@ int main(int argc, char **argv){
     }  	
 
     fclose(fp);
-    fprintf(stderr, "Photometry read in.\n");
+    printf("Photometry read in.\n");
 
     // Import stellar mass (m_stellar).
 
@@ -199,7 +199,7 @@ int main(int argc, char **argv){
 
 	fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
 
@@ -208,7 +208,7 @@ int main(int argc, char **argv){
     }
 
     fclose(fp);
-    fprintf(stderr,"Stellar masses read in.\n");
+    printf("Stellar masses read in.\n");
 
     // Now have enough data to make a volume limited sample.
     // Start by identifying how many galaxies are in this sample. Assign this length to all remaining data arrays.
@@ -256,7 +256,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
 
@@ -274,7 +274,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr,"Vmax read in.\n");
+    printf("Vmax read in.\n");
 
     // Import Hdelta (Hdelta).
 
@@ -282,7 +282,7 @@ int main(int argc, char **argv){
 
 	fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }    
 
@@ -300,7 +300,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "Hdelta read in.\n");
+    printf("Hdelta read in.\n");
 
     // Import KA parameters (ka).
 
@@ -308,7 +308,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }    
 
@@ -329,7 +329,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "KA parameters read in.\n");
+    printf("KA parameters read in.\n");
 
     // Import galaxy radius (R_exp).
 
@@ -337,7 +337,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }        
 
@@ -355,7 +355,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "Galaxy radius read in.\n");
+    printf("Galaxy radius read in.\n");
 
     // Import 4000A break (Dn4000).
 
@@ -363,7 +363,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-      fprintf(stderr,"ERROR opening [%s]\n",ff);
+      printf("ERROR opening [%s]\n",ff);
       exit(0);
     } 
 
@@ -381,7 +381,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "Dn4000 read in.\n");
+    printf("Dn4000 read in.\n");
 
     // Import specific star formation rate (sSFR).
 
@@ -389,7 +389,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
     j = 1;
@@ -406,7 +406,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "sSFR read in.\n");
+    printf("sSFR read in.\n");
 
     // Import velocity dispersion and signal-to-noise (velDisp, sNr).
 
@@ -414,7 +414,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     } 
 
@@ -432,7 +432,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "velDisp and sNr read in.\n");
+    printf("velDisp and sNr read in.\n");
 
     // Import Sersic index (sersic).
 
@@ -440,7 +440,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
 
@@ -458,7 +458,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "sersic read in.\n");
+    printf("sersic read in.\n");
 
     // Import fibre collision (collision).
 
@@ -466,7 +466,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
 
@@ -484,7 +484,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "collision read in.\n");
+    printf("collision read in.\n");
 
     // Import Petrosian radii (petroRad).
 
@@ -492,7 +492,7 @@ int main(int argc, char **argv){
 
     fp = fopen(ff,"r");
 	if(!(fp=fopen(ff,"r"))){
-    	fprintf(stderr,"ERROR opening [%s]\n",ff);
+    	printf("ERROR opening [%s]\n",ff);
     	exit(0);
     }
 
@@ -511,7 +511,7 @@ int main(int argc, char **argv){
     	exit(0);
     }
 
-    fprintf(stderr, "petroRad read in.\n");
+    printf("petroRad read in.\n");
 
     // Before proceeding, go back through and truncate existing arrays to only contain galaxies from the volume limited sample.
 
@@ -569,7 +569,7 @@ int main(int argc, char **argv){
 
     // Finished importing data!
 
-    fprintf(stderr, "** Finished reading in data! Sample defined. **\n\n");
+    printf("** Finished reading in data! Sample defined. **\n\n");
     printf("%d galaxies with mag_r > %2.2f, %.5f < z < %.4f, and mstar > %3.2e.\n",nsample,MAGNITUDE,MINREDSHIFT,MAXREDSHIFT, MSTARLIM);
     printf("Vol %e\n\n",volume);
 
@@ -645,14 +645,14 @@ int main(int argc, char **argv){
     	luminosity[i] = m_stellar[i];
     }
 
-    fprintf(stderr,"** Sorting complete! **\n\n");
+    printf("** Sorting complete! **\n\n");
 
     // ** UNCOMMENT BELOW TO OUTPUT A FILE WITH ALL THE DATA THAT HAS BEEN READ IN **
 
    //  fp = fopen("/Users/mehmet/Desktop/v2in.dat","w");
-  	// fprintf(fp,"ra,dec,redshift,mag_r,mag_g,v_max,m_stellar,Hdelta,ka,Rexp,Dn4000,sSFR,sersic,collision,velDisp,petroRad\n");
+  	// printf(fp,"ra,dec,redshift,mag_r,mag_g,v_max,m_stellar,Hdelta,ka,Rexp,Dn4000,sSFR,sersic,collision,velDisp,petroRad\n");
   	// for(i = 1; i <= nsample; ++i){
-   //  	fprintf(fp,"%f,%f,%f,%f,%f,%f,%f,%f,%d,%f,%f,%f,%f,%d,%f,%f\n", ra[i],dec[i],redshift[i], mag_r[i], mag_g[i], v_max[i],m_stellar[i],Hdelta[i],ka[i],Rexp[i],Dn4000[i],sSFR[i],sersic[i],collision[i],velDisp[i],petroRad[i]);
+   //  	printf(fp,"%f,%f,%f,%f,%f,%f,%f,%f,%d,%f,%f,%f,%f,%d,%f,%f\n", ra[i],dec[i],redshift[i], mag_r[i], mag_g[i], v_max[i],m_stellar[i],Hdelta[i],ka[i],Rexp[i],Dn4000[i],sSFR[i],sersic[i],collision[i],velDisp[i],petroRad[i]);
   	// }
   	// fclose(fp);
 
@@ -674,13 +674,13 @@ int main(int argc, char **argv){
     	sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i])*(1+redshift[i]/speedOfLight));
     }
     
-	fprintf(stderr, "** SHAMmed galaxies. **\n\n");
+	printf("** SHAMmed galaxies. **\n\n");
 
-	//fprintf(stderr, "Number density = %3.3e\n\n",ndens_gal);
+	//printf("Number density = %3.3e\n\n",ndens_gal);
 
 	// Now go through and find associated galaxies.
 
-	fprintf(stderr, "** Identifying satellites...\n\n");
+	printf("** Identifying satellites...\n\n");
 
 	// Create a k-d tree of all sample galaxies. This is used for nearest-neighbour searches later when identifying satellites around centrals.
 
@@ -711,7 +711,7 @@ int main(int argc, char **argv){
  //    void *set = kd_nearest_range( kd, pt, 1 );
 	// end = clock();
 	// cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
- //    printf( "found %d results in %.5f sec:\n", kd_res_size(set), cpu_time_used );
+ //    printf("found %d results in %.5f sec:\n", kd_res_size(set), cpu_time_used );
  //    char *pch;
  //    double dist;
  //    printf("%f %f %f\n",ra[1],dec[1],redshift[1]);
@@ -724,7 +724,7 @@ int main(int argc, char **argv){
 	//     dist = sqrt( dist_sq( pt, pos, 3 ) );
 
 	//     /* print out the retrieved data */
-	//     printf( "node at (%.3f, %.3f, %.3f) is %.3f away\n", 
+	//     printf("node at (%.3f, %.3f, %.3f) is %.3f away\n", 
 	// 	    pos[0], pos[1], pos[2], dist);
 
 	//     /* go to the next entry */
@@ -768,7 +768,7 @@ int main(int argc, char **argv){
 		
 	}
 	//msec = get_msec() - start;
-	fprintf(stderr, "** First pass satellite identification complete: \n");
+	printf("** First pass satellite identification complete: \n");
 	ngrp = igrp;
 	
 	//printf("%.3f sec\n", (float)msec / 1000.0);
@@ -793,7 +793,7 @@ int main(int argc, char **argv){
 		sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i])*(1+redshift[i]/speedOfLight));
 	}
 
-	fprintf(stderr, "** SHAMmed groups! Now iterating to convergence... ** \n\n");
+	printf("** SHAMmed groups! Now iterating to convergence... ** \n\n");
 
 	// This is the main iteration loop.
 
@@ -1093,7 +1093,7 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 	vol_corr = 1-(0.5*erfc(dz/(root2*sigma)));
 	*nsat_cur /= vol_corr;
 	grp_lum /= vol_corr;
-	//printf("%f %f\n",*nsat_cur,grp_lum);
+	printf("%f %f\n",prob_total,*nsat_cur,grp_lum);
 	return(grp_lum);
 
 }
