@@ -757,9 +757,6 @@ int main(int argc, char **argv){
 		group_center[igrp] = j;
 		group_member[j] = igrp; 
 
-		// if(prob_total[j] > 0)
-			// printf("%d %d %f\n",i,j,prob_total[j]);
-
 		group_luminosity[igrp] += find_satellites(j, ra, dec, redshift, mag_r, angRad[j], sigma[j], group_member, indx, nsample, rad[j], mass[j], igrp, luminosity,&nsat_indi[j],i,prob_total, kd);
 		if(nsat_indi[j] < 1)
 			k++;
@@ -817,6 +814,7 @@ int main(int argc, char **argv){
 		for(i = 1; i <= ngrp; ++i){
 			temp_group[i] = group_center[i];
 		}
+
 		ngrp_temp = ngrp;
 		ngrp = 0;
 		k = 0;
@@ -896,10 +894,11 @@ int main(int argc, char **argv){
 
 			if(nsat_indi[k] > 2){
 				j = central_galaxy(k, ra, dec, group_member, nsample, k, angRad[k], luminosity);
-			}
-			if(j != k){
-				group_center[igrp] = j;
-				k = j;
+			
+				if(j != k){
+					group_center[igrp] = j;
+					k = j;
+				}
 			}
 			
 			// New group centres have now been identified. Time to SHAM!
@@ -932,6 +931,20 @@ int main(int argc, char **argv){
 			
 		}
 	}
+
+	// Write group and galaxies to files.
+
+	printf("** Iterations complete! Writing output to file... **\n\n");
+
+	ff = "/Users/mehmet/Desktop/outGroups.csv";
+	fp = fopen(ff,"w");
+	fprintf(fp,"igrp,ra,dec,redshift,group_center,nsat,group_luminosity,mass,rad,sigma,angRad,prob_total\n");
+	for(i = 1; i <= ngrp; ++i){
+		igrp = group_index[i];
+		j = group_center[igrp];
+		fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", igrp, ra[j], dec[j], redshift[j], group_center[j], nsat_indi[j], group_luminosity[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
+	}
+	fclose(fp);
 }
 
 // ** End of main program. **
