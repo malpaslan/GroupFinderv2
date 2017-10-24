@@ -98,7 +98,7 @@ float GALAXY_DENSITY, MSTARLIM, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 
 int main(int argc, char **argv){
 
-	int i, j, k, igrp, ngal, nsample, count, imax, foo;
+	int i, j, k, igrp, ngal, nsample, count, imax;
 	int *indx, *collision, *ka;
 	int *group_member, *group_index, *group_center, *temp_group;
 	int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
@@ -738,6 +738,7 @@ int main(int argc, char **argv){
 	// igrp is simply the group name. 
 	// group_member keeps track of which galaxy belongs in which group name.
 	// group_center keeps track of which galaxy is at the centre of each group.
+	// group_index is the same as indx but for groups.
     
 	k = 0;
 	igrp = 0;
@@ -747,6 +748,7 @@ int main(int argc, char **argv){
 		prob_total[i] = 0.;
 		group_member[i] = 0;
 	}
+
 	//start = get_msec();
 	for(i = 1; i <= nsample; ++i){
 		j = indx[i];
@@ -802,7 +804,7 @@ int main(int argc, char **argv){
 
 		for(i = 1; i <= nsample; ++i){
 			if(prob_total[i] >= 0)
-				prob_total[i] = 0.;
+				prob_total[i] = 0;
 		}
 		for(i = 1; i <= nsample; ++i){
 			group_member[i] = 0;
@@ -816,31 +818,30 @@ int main(int argc, char **argv){
 		}
 
 		ngrp_temp = ngrp;
-		ngrp = 0;
+		igrp = ngrp = 0;
 		k = 0;
 		nsat_tot = 0;
 
 		// Reset complete!
 
 		// Perform satellite identification for current iteration of the groups.
-		foo = 0;
+
 		for(j = 1; j <= ngrp_temp; ++j){
 
 			i = temp_group[j];
 
 			// Is this galaxy a group member? If so, skip!
-			// printf("%d %d\n",i, group_member[i]);
-			if(group_member[i] > 0){
+
+			if(group_member[i]){
 				continue;
 			}
 
-			ngrp++;
-			group_luminosity[ngrp] = m_stellar[i];
-			group_member[i] = ngrp;
-			group_center[ngrp] = i;
-			nsat_indi[i] = 0;
+			igrp++;
+			group_luminosity[igrp] = m_stellar[i];
+			group_member[i] = igrp;
+			group_center[igrp] = i;
 
-			group_luminosity[ngrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], ngrp, luminosity, &nsat_indi[i], j, prob_total, kd);
+			group_luminosity[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, luminosity, &nsat_indi[i], j, prob_total, kd);
 
 			if(nsat_indi[i] == 0)
 				k++;
@@ -851,23 +852,27 @@ int main(int argc, char **argv){
 		// Some galaxies will now have been newly 'exposed.'
 
 		count = 0;
-		for(i = 1; i <= nsample; ++i){
+		for(j = 1; j <= nsample; ++j){
+
+			i = indx[j];
 			
 			if(group_member[i])
 				continue;
+
 			count++;
-			ngrp++;
-			group_luminosity[ngrp] = m_stellar[i];
-			group_member[i] = ngrp;
-			group_center[ngrp] = i;
+			igrp++;
+			group_luminosity[igrp] = m_stellar[i];
+			group_member[i] = igrp;
+			group_center[igrp] = i;
 
 			nsat_indi[i] = 0;
-			group_luminosity[ngrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], ngrp, luminosity, &nsat_indi[i], j, prob_total, kd);
+			group_luminosity[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, luminosity, &nsat_indi[i], j, prob_total, kd);
 
 			if(nsat_indi[i] == 0)
 				k++;
 			nsat_tot += nsat_indi[i];
 		}
+		ngrp = igrp;
 		printf("%d\n",count);
 		printf("%d groups, %d n = 1 groups, fsat = %.2f\n", ngrp, k, nsat_tot*1./nsample);
 
@@ -885,14 +890,14 @@ int main(int argc, char **argv){
 
 		// Now perform abundance matching on this new set of groups. Must first determine new group centres based on updated group composition, however.
 
-		j = 0;
 		for(i = 1; i <= ngrp; ++i){
+
 			igrp = group_index[i];
 			k = group_center[igrp];
 
 			// What's the new group center?
 
-			if(nsat_indi[k] > 2){
+			if(nsat_indi[k] < -2){
 				j = central_galaxy(k, ra, dec, group_member, nsample, k, angRad[k], luminosity);
 			
 				if(j != k){
@@ -930,18 +935,26 @@ int main(int argc, char **argv){
 			//theta = angular_separation(ra[i], dec[i], ra[j], dec[j]);
 			
 		}
+
+		char buf[100];
+		snprintf(buf,sizeof(buf),"/Users/mehmet/Desktop/groupout/niter%dinfo.csv",niter);
+		fp = fopen(buf,"w");
+		fprintf(fp,"group_member,group_center,group_member,nsat_indi,prob_total,mass,radius,angRad,sigma,group_luminosity\n");
+		for(i = 1; i <= nsample; ++i){
+			fprintf(fp,"%d,%d,%d,%f,%f,%f,%f,%f,%f,%f\n",group_member[i],group_center[i],group_member[i],nsat_indi[i],prob_total[i],mass[i],rad[i],angRad[i],sigma[i],group_luminosity[i]);
+		}
+		fclose(fp);
 	}
 
 	// Write group and galaxies to files.
 
 	printf("** Iterations complete! Writing output to file... **\n\n");
 
-	ff = "/Users/mehmet/Desktop/outGroups.csv";
+	ff = "/Users/mehmet/Desktop/groupout/groupsv2.csv";
 	fp = fopen(ff,"w");
 	fprintf(fp,"igrp,ra,dec,redshift,group_center,nsat,group_luminosity,mass,rad,sigma,angRad,prob_total\n");
-	for(i = 1; i <= ngrp; ++i){
-		igrp = group_index[i];
-		j = group_center[igrp];
+	for(i = 1; i <= nsample; ++i){
+		j = indx[i];
 		fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", igrp, ra[j], dec[j], redshift[j], group_center[j], nsat_indi[j], group_luminosity[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
 	}
 	fclose(fp);
