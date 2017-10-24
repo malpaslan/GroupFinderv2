@@ -72,7 +72,7 @@ float distance_redshift(float z);
 float angular_separation(float a1, float d1, float a2, float d2);
 float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_r, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *luminosity, float *nsat_cur, int i1, float *prob_total, void *kd);
 float radial_probability(float mass, float dr, float rad, float ang_rad);
-int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity);
+int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity, float nsat);
 //static double dist_sq( double *a1, double *a2, int dims );
 
 unsigned int get_msec(void)
@@ -897,8 +897,8 @@ int main(int argc, char **argv){
 
 			// What's the new group center?
 
-			if(nsat_indi[k] < -2){
-				j = central_galaxy(k, ra, dec, group_member, nsample, k, angRad[k], luminosity);
+			if(nsat_indi[k] > 2){
+				j = central_galaxy(k, ra, dec, group_member, nsample, igrp, angRad[k], luminosity,nsat_indi[k]);
 			
 				if(j != k){
 					group_center[igrp] = j;
@@ -1126,7 +1126,7 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 
 }
 
-int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity){
+int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *luminosity, float nsat){
 
 	int j, ii[100000], icnt, k, imax, l, icen;
 	float pot[100000], theta, maxpot, angDist;
@@ -1140,11 +1140,11 @@ int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, in
 	icnt = 0;
 	for(i = 1; i <= ngal; ++i){
 		if(group_member[i] == igrp){
-		icnt++;
-		ii[icnt] = i;
+			icnt++;
+			ii[icnt] = i;
 		}
 	}
-
+	
 	// Perform a double sum of mass to get the 'potential' of each galaxy.
 
   	for(k = 1; k <= icnt; ++k)
