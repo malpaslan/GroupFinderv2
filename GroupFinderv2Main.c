@@ -105,11 +105,11 @@ int main(int argc, char **argv){
 	int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
 
 	float *ra, *dec, *redshift, *mag_g, *mag_r, *v_max, *m_stellar, *Hdelta, *Dn4000, *Rexp, *sSFR, *sersic, *velDisp, *sNr, *petroRad;
-	float *mass, *rad, *angRad, *sigma, *prob_total, *nsat_indi, maxMass;
+	float *mass, *rad, *angRad, *sigma, *prob_total, *nsat, maxMass;
 	float *group_mass;
 	float x1, x2, *tempArray;
 	float volume;
-	float x, y, z, radius;
+	float x, y, z, radius, theta;
 	unsigned int msec, start;
 
 	void *kd;
@@ -247,7 +247,7 @@ int main(int argc, char **argv){
   	temp_group = ivector(1, nsample);
 
   	group_mass = vector(1, nsample);
-  	nsat_indi = vector(1, nsample);
+  	nsat = vector(1, nsample);
   	group_member = ivector(1, nsample);
   	group_index = ivector(1, nsample);
   	group_center = ivector(1, nsample);
@@ -758,10 +758,10 @@ int main(int argc, char **argv){
 		group_center[igrp] = j;
 		group_member[j] = igrp; 
 
-		group_mass[igrp] += find_satellites(j, ra, dec, redshift, mag_r, angRad[j], sigma[j], group_member, indx, nsample, rad[j], mass[j], igrp, m_stellar,&nsat_indi[j],i,prob_total, kd);
-		if(nsat_indi[j] < 1)
+		group_mass[igrp] += find_satellites(j, ra, dec, redshift, mag_r, angRad[j], sigma[j], group_member, indx, nsample, rad[j], mass[j], igrp, m_stellar,&nsat[j],i,prob_total, kd);
+		if(nsat[j] < 1)
 			k++;
-		nsat_tot += nsat_indi[j] * (1-prob_total[j]);
+		nsat_tot += nsat[j] * (1-prob_total[j]);
 		
 	}
 	
@@ -807,7 +807,7 @@ int main(int argc, char **argv){
 		}
 		for(i = 1; i <= nsample; ++i){
 			group_member[i] = 0;
-			nsat_indi[i] = 0;
+			nsat[i] = 0;
 		}
 
 		// Transfer group centers to a temporary list.
@@ -840,12 +840,12 @@ int main(int argc, char **argv){
 			group_member[i] = igrp;
 			group_center[igrp] = i;
 
-			group_mass[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat_indi[i], j, prob_total, kd);
+			group_mass[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], j, prob_total, kd);
 
-			if(nsat_indi[i] == 0)
+			if(nsat[i] == 0)
 				k++;
 
-			nsat_tot += nsat_indi[i];
+			nsat_tot += nsat[i];
 		}
 	
 		// Some galaxies will now have been newly 'exposed.'
@@ -864,12 +864,12 @@ int main(int argc, char **argv){
 			group_member[i] = igrp;
 			group_center[igrp] = i;
 
-			nsat_indi[i] = 0;
-			group_mass[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat_indi[i], j, prob_total, kd);
+			nsat[i] = 0;
+			group_mass[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], j, prob_total, kd);
 
-			if(nsat_indi[i] == 0)
+			if(nsat[i] == 0)
 				k++;
-			nsat_tot += nsat_indi[i];
+			nsat_tot += nsat[i];
 		}
 		ngrp = igrp;
 		printf("%d\n",count);
@@ -892,13 +892,30 @@ int main(int argc, char **argv){
 		if(niter == niter_max){
 			printf("** Iterations complete! Writing output to file... **\n\n");
 
-			ff = "/Users/mehmet/Desktop/groupout/groupsv2.csv";
+			ff = "/Users/mehmet/Desktop/groupsv2.csv";
 			fp = fopen(ff,"w");
-			fprintf(fp,"igrp,ra,dec,redshift,group_center,nsat,group_mass,mass,rad,sigma,angRad,prob_total,m_central\n");
+			fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral\n");
 			for(i = 1; i <= ngrp; ++i){
 				j = group_index[i];
 				k = group_center[j];
-				fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat_indi[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j],m_stellar[k]);
+				fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j],m_stellar[k]);
+			}
+			fclose(fp);
+
+			ff = "/Users/mehmet/Desktop/galsv2.csv";
+			fp = fopen(ff,"w");
+			fprintf(fp,"galID,ra,dec,redshift,mag_r,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep\n");
+			for(i = 1; i <= nsample; ++i){
+				j = indx[i];
+				igrp = group_member[j];
+				k = group_center[igrp];
+
+				if(j == k)
+					theta = 0;
+				if(j != k)
+	  				theta = angular_separation(ra[j],dec[j],ra[k],dec[k]);
+
+				fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j]/speedOfLight,mag_r[j], m_stellar[j], group_member[j], prob_total[j], k, mass[k], rad[k],theta, theta/angRad[k]);
 			}
 			fclose(fp);
 
@@ -913,8 +930,8 @@ int main(int argc, char **argv){
 
 			// What's the new group center?
 
-			if(nsat_indi[k] < -2){
-				j = central_galaxy(k, ra, dec, group_member, nsample, igrp, angRad[k], m_stellar,nsat_indi[k]);
+			if(nsat[k] < -2){
+				j = central_galaxy(k, ra, dec, group_member, nsample, igrp, angRad[k], m_stellar,nsat[k]);
 			
 				if(j != k){
 					group_center[igrp] = j;
@@ -955,9 +972,9 @@ int main(int argc, char **argv){
 		// char buf[100];
 		// snprintf(buf,sizeof(buf),"/Users/mehmet/Desktop/groupout/niter%dinfo.csv",niter);
 		// fp = fopen(buf,"w");
-		// fprintf(fp,"group_member,group_center,group_member,nsat_indi,prob_total,mass,radius,angRad,sigma,group_mass\n");
+		// fprintf(fp,"group_member,group_center,group_member,nsat,prob_total,mass,radius,angRad,sigma,group_mass\n");
 		// for(i = 1; i <= nsample; ++i){
-		// 	fprintf(fp,"%d,%d,%d,%f,%f,%f,%f,%f,%f,%f\n",group_member[i],group_center[i],group_member[i],nsat_indi[i],prob_total[i],mass[i],rad[i],angRad[i],sigma[i],group_mass[i]);
+		// 	fprintf(fp,"%d,%d,%d,%f,%f,%f,%f,%f,%f,%f\n",group_member[i],group_center[i],group_member[i],nsat[i],prob_total[i],mass[i],rad[i],angRad[i],sigma[i],group_mass[i]);
 		// }
 		// fclose(fp);
 	}
@@ -971,7 +988,7 @@ int main(int argc, char **argv){
 	// fprintf(fp,"igrp,ra,dec,redshift,group_center,nsat,group_mass,mass,rad,sigma,angRad,prob_total\n");
 	// for(i = 1; i <= ngrp; ++i){
 	// 	j = group_index[i];
-	// 	fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat_indi[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
+	// 	fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
 	// }
 	// fclose(fp);
 
