@@ -602,7 +602,7 @@ int main(int argc, char **argv){
     	m_stellar[i] = -m_stellar[i];
     	tempArray[i] = m_stellar[i];
     }
-    // Store m_stellar in this temporary array. Before each sort, reassign m_stellar to this array; otherwise sorting won't happen as m_stellar will have already been sorted! Don't you just love C?
+    // Store m_stellar in this temporary array. Before each sort, reassign m_stellar to this array; otherwise sorting won't happen as m_stellar will have already been sorted! Don't you just love C? Make sure last sort is m_stellar, though.
 
     sort2(nsample, tempArray, indx);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
@@ -637,6 +637,7 @@ int main(int argc, char **argv){
     sort3(nsample, tempArray, sNr);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort3(nsample, m_stellar, petroRad);
+	free(tempArray);
 
     // m_stellar is now in descending order, with corresponding indx values. Make m_stellar positive again.
 
@@ -700,39 +701,6 @@ int main(int argc, char **argv){
     	assert( kd_insert(kd, pt, (void*)&indx[i]) == 0);
     }
 
-     //    // This is just a chunk of code to test if the k-d tree works; delete below.
-
- //    double pt[3] = { ra[1], dec[1], redshift[1]};
- //    double pos[3];
- //    clock_t start, end;
- //    double cpu_time_used;
- //    start = clock();
- //    void *set = kd_nearest_range( kd, pt, 1 );
-	// end = clock();
-	// cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
- //    printf("found %d results in %.5f sec:\n", kd_res_size(set), cpu_time_used );
- //    char *pch;
- //    double dist;
- //    printf("%f %f %f\n",ra[1],dec[1],redshift[1]);
- //    while( !kd_res_end( set ) ) {
-
-	//     /* get the data and position of the current result item */
-	//     pch = (char*)kd_res_item( set, pos );
-
-	//     /* compute the distance of the current result from the pt */
-	//     dist = sqrt( dist_sq( pt, pos, 3 ) );
-
-	//     /* print out the retrieved data */
-	//     printf("node at (%.3f, %.3f, %.3f) is %.3f away\n", 
-	// 	    pos[0], pos[1], pos[2], dist);
-
-	//     /* go to the next entry */
-	//     kd_res_next( set );
- //  	}
-
- //  	// This is just a chunk of code to test if the k-d tree works; delete above.
-
-
 	// Prepare variables/arrays.
 	// igrp is simply the group name. 
 	// group_member keeps track of which galaxy belongs in which group name.
@@ -743,7 +711,6 @@ int main(int argc, char **argv){
 	igrp = 0;
 	nsat_tot = 0;
 	for(i = 1; i <= nsample; ++i){
-		
 		prob_total[i] = 0.;
 		group_member[i] = 0;
 	}
@@ -851,14 +818,11 @@ int main(int argc, char **argv){
 		// Some galaxies will now have been newly 'exposed.'
 
 		count = 0;
-		for(j = 1; j <= nsample; ++j){
+		for(i = 1; i <= nsample; ++i){
 
-			i = indx[j];
-			
 			if(group_member[i])
 				continue;
 
-			count++;
 			igrp++;
 			group_mass[igrp] = m_stellar[i];
 			group_member[i] = igrp;
@@ -872,7 +836,6 @@ int main(int argc, char **argv){
 			nsat_tot += nsat[i];
 		}
 		ngrp = igrp;
-		printf("%d\n",count);
 		printf("%d groups, %d n = 1 groups, fsat = %.2f\n", ngrp, k, nsat_tot*1./nsample);
 
 		for(i = 1; i <= ngrp; ++i){
@@ -886,40 +849,6 @@ int main(int argc, char **argv){
 		sort2(ngrp, group_mass, group_index);
 		for(i = 1; i <= ngrp; ++i)
 			group_mass[i] *= -1;
-
-		// If niter = niter_max, time to output!
-
-		if(niter == niter_max){
-			printf("** Iterations complete! Writing output to file... **\n\n");
-
-			ff = "/Users/mehmet/Desktop/groupsv2.csv";
-			fp = fopen(ff,"w");
-			fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral\n");
-			for(i = 1; i <= ngrp; ++i){
-				j = group_index[i];
-				k = group_center[j];
-				fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j],m_stellar[k]);
-			}
-			fclose(fp);
-
-			ff = "/Users/mehmet/Desktop/galsv2.csv";
-			fp = fopen(ff,"w");
-			fprintf(fp,"galID,ra,dec,redshift,mag_r,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep\n");
-			for(i = 1; i <= nsample; ++i){
-				j = indx[i];
-				igrp = group_member[j];
-				k = group_center[igrp];
-
-				if(j == k)
-					theta = 0;
-				if(j != k)
-	  				theta = angular_separation(ra[j],dec[j],ra[k],dec[k]);
-
-				fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j]/speedOfLight,mag_r[j], m_stellar[j], group_member[j], prob_total[j], k, mass[k], rad[k],theta, theta/angRad[k]);
-			}
-			fclose(fp);
-
-		}
 
 		// Now perform abundance matching on this new set of groups. Must first determine new group centres based on updated group composition, however.
 
@@ -945,6 +874,7 @@ int main(int argc, char **argv){
 			rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
 			angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
 			sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
+			//printf("BGH%d %f %f\n",niter,mass[k],group_mass[i]);
 
 			// Identify most massive galaxy in group.
 			
@@ -957,40 +887,41 @@ int main(int argc, char **argv){
 					}
 				}
 			}
-		}
 
-		for(i = 1; i <= nsample; ++i){
-			for(j = 1; j <= ngrp; ++j)
-				if(group_index[j] == group_member[i])
-					break;
-			igrp = group_index[j];
-			j = group_center[igrp];
-			//theta = angular_separation(ra[i], dec[i], ra[j], dec[j]);
-			
-		}
+			// If niter = niter_max, time to output!
 
-		// char buf[100];
-		// snprintf(buf,sizeof(buf),"/Users/mehmet/Desktop/groupout/niter%dinfo.csv",niter);
-		// fp = fopen(buf,"w");
-		// fprintf(fp,"group_member,group_center,group_member,nsat,prob_total,mass,radius,angRad,sigma,group_mass\n");
-		// for(i = 1; i <= nsample; ++i){
-		// 	fprintf(fp,"%d,%d,%d,%f,%f,%f,%f,%f,%f,%f\n",group_member[i],group_center[i],group_member[i],nsat[i],prob_total[i],mass[i],rad[i],angRad[i],sigma[i],group_mass[i]);
-		// }
-		// fclose(fp);
+			if(niter == niter_max){
+				printf("** Iterations complete! Writing output to file... **\n\n");
+
+				ff = "/Users/mehmet/Desktop/groupsv2.csv";
+				fp = fopen(ff,"w");
+				fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral\n");
+				for(i = 1; i <= ngrp; ++i){
+					j = group_index[i];
+					k = group_center[j];
+					fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k]);
+				}
+				fclose(fp);
+
+				ff = "/Users/mehmet/Desktop/galsv2.csv";
+				fp = fopen(ff,"w");
+				fprintf(fp,"galID,ra,dec,redshift,mag_r,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep\n");
+				for(i = 1; i <= nsample; ++i){
+					j = indx[i];
+					igrp = group_member[j];
+					k = group_center[igrp];
+
+					if(j == k)
+						theta = 0;
+					if(j != k)
+		  				theta = angular_separation(ra[j],dec[j],ra[k],dec[k]);
+
+					fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j]/speedOfLight,mag_r[j], m_stellar[j], group_member[j], prob_total[j], k, mass[k], rad[k],theta, theta/angRad[k]);
+				}
+				fclose(fp);
+			}
+		}
 	}
-
-	// Write group and galaxies to files.
-
-	// printf("** Iterations complete! Writing output to file... **\n\n");
-
-	// ff = "/Users/mehmet/Desktop/groupout/groupsv2.csv";
-	// fp = fopen(ff,"w");
-	// fprintf(fp,"igrp,ra,dec,redshift,group_center,nsat,group_mass,mass,rad,sigma,angRad,prob_total\n");
-	// for(i = 1; i <= ngrp; ++i){
-	// 	j = group_index[i];
-	// 	fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
-	// }
-	// fclose(fp);
 
 	msec = get_msec() - start;
 	printf("%.3f sec\n", (float)msec / 1000.0);	
@@ -1222,4 +1153,3 @@ int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, in
 //   }
 //   return dist_sq;
 // }
-
