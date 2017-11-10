@@ -688,17 +688,20 @@ int main(int argc, char **argv){
     kd = kd_create(3);
 
     // Insert points into tree. Each point consists of RA and Dec of a galaxy, projected onto a plane using the Hammer projection.
+
+    // Names array is made to simply pass the row numbers of galaxies into the kd-tree for later retrieval.
     int *names;
     names = ivector(1, nsample);
+
     for(i = 1; i <= nsample; ++i){
     	radius = distance_redshift(redshift[i]/speedOfLight);
     	x = radius * cos(ra[i]) * cos(dec[i]);
     	y = radius * sin(ra[i]) * cos(dec[i]); 
     	z = radius * sin(dec[i]);
     	names[i] = i;
+
     	double pt[3] = {x, y, z};
     	assert( kd_insert(kd, pt, (void*)&names[i]) == 0);
-
     }
 
 	// Prepare variables/arrays.
@@ -800,6 +803,8 @@ int main(int argc, char **argv){
 				continue;
 			}
 
+			// Is this galaxy a satellite? If so, skip!
+
 			igrp++;
 			group_mass[igrp] = m_stellar[i];
 			group_member[i] = igrp;
@@ -818,8 +823,9 @@ int main(int argc, char **argv){
 		count = 0;
 		for(i = 1; i <= nsample; ++i){
 
-			if(group_member[i])
+			if(group_member[i]){
 				continue;
+			}
 
 			igrp++;
 			group_mass[igrp] = m_stellar[i];
@@ -848,9 +854,13 @@ int main(int argc, char **argv){
 		for(i = 1; i <= ngrp; ++i)
 			group_mass[i] *= -1;
 
-		// Now perform abundance matching on this new set of groups. Must first determine new group centres based on updated group composition, however.
+		// Now perform abundance matching on this new set of groups. Must first determine new group centres based on updated group composition, however. Make sure not to run on satellites.
 
 		for(i = 1; i <= ngrp; ++i){
+
+			if(prob_total[i] > 0.5){
+				continue;
+			}
 
 			igrp = group_index[i];
 			k = group_center[igrp];
@@ -868,7 +878,7 @@ int main(int argc, char **argv){
 
 			// New group centres have now been identified. Time to SHAM!
 
-			mass[k] = density2host_halo(i/volume);
+			mass[k] = density2host_halo(igrp/volume);
 			rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
 			angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
 			sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
