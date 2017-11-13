@@ -858,10 +858,6 @@ int main(int argc, char **argv){
 
 		for(i = 1; i <= ngrp; ++i){
 
-			if(prob_total[i] > 0.5){
-				continue;
-			}
-
 			igrp = group_index[i];
 			k = group_center[igrp];
 
