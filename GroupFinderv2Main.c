@@ -730,10 +730,9 @@ int main(int argc, char **argv){
 		group_mass[igrp] += find_satellites(i, ra, dec, redshift, mag_r, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar,&nsat[i],prob_total, kd);
 		if(nsat[i] < 1)
 			k++;
-		nsat_tot += nsat[i] * (1-prob_total[i]);
+		nsat_tot += nsat[i];
 			
 	}
-	
 	//msec = get_msec() - start;
 	printf("** First pass satellite identification complete: \n");
 	ngrp = igrp;
@@ -792,18 +791,16 @@ int main(int argc, char **argv){
 		// Reset complete!
 
 		// Perform satellite identification for current iteration of the groups.
+		
+		for(i = 1; i <= ngrp_temp; ++i){
 
-		for(j = 1; j <= ngrp_temp; ++j){
-
-			i = temp_group[j];
+			// i = temp_group[j];
 
 			// Is this galaxy a group member? If so, skip!
 
 			if(group_member[i]){
 				continue;
 			}
-
-			// Is this galaxy a satellite? If so, skip!
 
 			igrp++;
 			group_mass[igrp] = m_stellar[i];
@@ -827,6 +824,10 @@ int main(int argc, char **argv){
 				continue;
 			}
 
+			if(prob_total[i] > 0.5){
+				continue;
+			}
+
 			igrp++;
 			group_mass[igrp] = m_stellar[i];
 			group_member[i] = igrp;
@@ -841,7 +842,6 @@ int main(int argc, char **argv){
 		}
 		ngrp = igrp;
 		printf("%d groups, %d n = 1 groups, fsat = %.2f\n", ngrp, k, nsat_tot*1./nsample);
-
 		for(i = 1; i <= ngrp; ++i){
 			group_index[i] = i;
 		}
@@ -892,37 +892,44 @@ int main(int argc, char **argv){
 				}
 			}
 
-			// If niter = niter_max, time to output!
+		}
 
-			if(niter == niter_max){
-				printf("** Iterations complete! Writing output to file... **\n\n");
+		// If niter = niter_max, time to output!
 
-				ff = "/Users/mehmet/Desktop/groupsv2.csv";
-				fp = fopen(ff,"w");
-				fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral\n");
-				for(i = 1; i <= ngrp; ++i){
-					j = group_index[i];
-					k = group_center[j];
-					fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k]);
-				}
-				fclose(fp);
+		if(niter == niter_max){
+			printf("** Iterations complete! Writing output to file... **\n\n");
 
-				ff = "/Users/mehmet/Desktop/galsv2.csv";
-				fp = fopen(ff,"w");
-				fprintf(fp,"galID,ra,dec,redshift,mag_r,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep\n");
-				for(i = 1; i <= nsample; ++i){
-					igrp = group_member[i];
-					j = group_center[igrp];
-
-					if(i == j)
-						theta = 0;
-					if(i != j)
-		  				theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
-
-					fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f\n", i, ra[i], dec[i], redshift[i]/speedOfLight,mag_r[i], m_stellar[i], group_member[i], prob_total[i], j, mass[j], rad[j],theta, theta/angRad[j]);
-				}
-				fclose(fp);
+			ff = "/Users/mehmet/Desktop/groupsv2.csv";
+			fp = fopen(ff,"w");
+			fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral\n");
+			for(i = 1; i <= ngrp; ++i){
+				j = group_index[i];
+				k = group_center[j];
+				fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k]);
 			}
+			fclose(fp);
+
+			ff = "/Users/mehmet/Desktop/galsv2.csv";
+			fp = fopen(ff,"w");
+			fprintf(fp,"galID,ra,dec,redshift,mag_r,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,MSgroup\n");
+			for(i = 1; i <= nsample; ++i){
+				
+				for(k = 1; k <= ngrp; ++k)
+					if(group_index[k] == group_member[i])
+						break;
+
+				igrp = group_member[i];
+				j = group_center[igrp];
+
+				if(i == j)
+					theta = 0;
+				if(i != j)
+	  				theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+
+				fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f\n", i, ra[i], dec[i], redshift[i]/speedOfLight,mag_r[i], m_stellar[i], igrp, prob_total[i], j, mass[j], rad[j],theta, theta/angRad[j],group_mass[igrp]);
+
+			}
+			fclose(fp);
 		}
 	}
 
@@ -1058,11 +1065,8 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float *mag_
 		
 		p0 = (1 - 1/(1 + prob_ang * prob_rad / 10));
 		
-		if(p0 < 0){
-			printf("ZERO %e\n",p0);
+		if(p0 < 0)
 			p0 = 0;
-		}
-
 		if(p0 > prob_total[j])
 			prob_total[j] = p0;
 		if(prob_total[j] > 1)

@@ -483,7 +483,7 @@ int main(int argc, char **argv){
 
     for(j = 1; j <= ngrp_temp; ++j){
 
-      i = temp_group[j];
+      // i = temp_group[j];
 
       // Is this galaxy a group member? If so, skip!
 
