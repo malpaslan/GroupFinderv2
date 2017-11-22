@@ -874,7 +874,7 @@ int main(int argc, char **argv){
 
 			// New group centres have now been identified. Time to SHAM!
 
-			mass[k] = density2host_halo(igrp/volume);
+			mass[k] = density2host_halo(i/volume);
 			rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
 			angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
 			sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
@@ -905,7 +905,7 @@ int main(int argc, char **argv){
 			for(i = 1; i <= ngrp; ++i){
 				j = group_index[i];
 				k = group_center[j];
-				fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k]);
+				fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k]);
 			}
 			fclose(fp);
 
@@ -914,19 +914,16 @@ int main(int argc, char **argv){
 			fprintf(fp,"galID,ra,dec,redshift,mag_r,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,MSgroup\n");
 			for(i = 1; i <= nsample; ++i){
 				
-				for(k = 1; k <= ngrp; ++k)
-					if(group_index[k] == group_member[i])
-						break;
+				k = indx[i];
+				igrp = group_member[k];
+				j = group_index[igrp];
 
-				igrp = group_member[i];
-				j = group_center[igrp];
-
-				if(i == j)
+				if(k == j)
 					theta = 0;
-				if(i != j)
-	  				theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+				if(k != j)
+	  				theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-				fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f\n", i, ra[i], dec[i], redshift[i]/speedOfLight,mag_r[i], m_stellar[i], igrp, prob_total[i], j, mass[j], rad[j],theta, theta/angRad[j],group_mass[igrp]);
+				fprintf(fp,"%d,%f,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f\n", k, ra[k], dec[k], redshift[k]/speedOfLight,mag_r[k], m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]],group_mass[j]);
 
 			}
 			fclose(fp);
