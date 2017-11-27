@@ -2,7 +2,7 @@
 
 // For self: compile command --
 // gcc -o gfv2mock GroupFinderv2Mocks.c *.o -L/Users/mehmet/Dropbox/libC_main -lC_main -Wall -lm
-
+   
 // Initialization //
 
 #include <stdlib.h>
@@ -88,7 +88,7 @@ unsigned int get_msec(void)
 
 // Global variables go here
 
-float GALAXY_DENSITY, MSTARLIM, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
+float GALAXY_DENSITY, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 
 // End initialization //
 
@@ -123,12 +123,12 @@ int main(int argc, char **argv){
   MAXREDSHIFT = czMax / speedOfLight;
   MINREDSHIFT = czMin / speedOfLight;
   MAGNITUDE = -19;
-  MSTARLIM = pow(10.0,15);
+  //MSTARLIM = pow(10.0,15);
   x1 = x2 = 0;
 
   volume = segvol(distance_redshift(MINREDSHIFT),distance_redshift(MAXREDSHIFT), 0, 90, 0, 90);
   
-  printf("Magitude: %f\nMin redshift: %f\nMax redshift: %f\nStellar mass: %e\nVolume: %e\n",MAGNITUDE,MINREDSHIFT,MAXREDSHIFT,MSTARLIM,volume);
+  printf("Magitude: %f\nMin redshift: %f\nMax redshift: %f\nVolume: %e\n",MAGNITUDE,MINREDSHIFT,MAXREDSHIFT,volume);
 
   // Start by reading in data. At first only read in bare minimum to establish a volume limited sample; then read in everything else.
 
@@ -178,7 +178,7 @@ int main(int argc, char **argv){
     ra[i] *= pi/180;
     dec[i] *= pi/180;
     indx[i] = i;
-    m_stellar[i] = pow(m_stellar[i],10.);
+    m_stellar[i] = pow(10.,m_stellar[i]);
     fgets(string,1000,fp);
   }
 
@@ -365,7 +365,7 @@ int main(int argc, char **argv){
 
   //printf("Number density = %3.3e\n\n",ndens_gal);
 
-  // Now go through and find associated galaxies.
+ // Now go through and find associated galaxies.
 
   printf("** Identifying satellites...\n\n");
 
@@ -373,7 +373,7 @@ int main(int argc, char **argv){
 
     // k-d tree should have 3 dimensions (RA, Dec, z).
 
-     kd = kd_create(3);
+    kd = kd_create(3);
 
     // Insert points into tree. Each point consists of RA and Dec of a galaxy, projected onto a plane using the Hammer projection.
 
@@ -418,10 +418,9 @@ int main(int argc, char **argv){
     group_mass[igrp] += find_satellites(i, ra, dec, redshift, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar,&nsat[i],prob_total, kd);
     if(nsat[i] < 1)
       k++;
-    nsat_tot += nsat[i] * (1-prob_total[i]);
+    nsat_tot += nsat[i];
       
   }
-  
   //msec = get_msec() - start;
   printf("** First pass satellite identification complete: \n");
   ngrp = igrp;
@@ -480,8 +479,8 @@ int main(int argc, char **argv){
     // Reset complete!
 
     // Perform satellite identification for current iteration of the groups.
-
-    for(j = 1; j <= ngrp_temp; ++j){
+    
+    for(i = 1; i <= ngrp_temp; ++i){
 
       // i = temp_group[j];
 
@@ -490,8 +489,6 @@ int main(int argc, char **argv){
       if(group_member[i]){
         continue;
       }
-
-      // Is this galaxy a satellite? If so, skip!
 
       igrp++;
       group_mass[igrp] = m_stellar[i];
@@ -515,6 +512,10 @@ int main(int argc, char **argv){
         continue;
       }
 
+      if(prob_total[i] > 0.5){
+        continue;
+      }
+
       igrp++;
       group_mass[igrp] = m_stellar[i];
       group_member[i] = igrp;
@@ -529,7 +530,6 @@ int main(int argc, char **argv){
     }
     ngrp = igrp;
     printf("%d groups, %d n = 1 groups, fsat = %.2f\n", ngrp, k, nsat_tot*1./nsample);
-
     for(i = 1; i <= ngrp; ++i){
       group_index[i] = i;
     }
@@ -562,11 +562,11 @@ int main(int argc, char **argv){
 
       // New group centres have now been identified. Time to SHAM!
 
-      mass[k] = density2host_halo(igrp/volume);
+      mass[k] = density2host_halo(i/volume);
       rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
       angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
       sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
-      // printf("BGH%d %f %f\n",niter,mass[k],group_mass[i]);
+      //printf("BGH%d %f %f\n",niter,mass[k],group_mass[i]);
 
       // Identify most massive galaxy in group.
       
@@ -580,6 +580,7 @@ int main(int argc, char **argv){
         }
       }
 
+    }
 
     // If niter = niter_max, time to output!
 
@@ -592,28 +593,28 @@ int main(int argc, char **argv){
       for(i = 1; i <= ngrp; ++i){
         j = group_index[i];
         k = group_center[j];
-        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, ra[j], dec[j], redshift[j], group_center[j], nsat[j], group_mass[j], mass[j], rad[j], sigma[j], angRad[j],m_stellar[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],HaloID[k],m_halo[k]);
       }
       fclose(fp);
 
       ff = "/Users/mehmet/Desktop/mockGalsv2.csv";
       fp = fopen(ff,"w");
-      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,HaloID,SimGalID,SimHaloMass\n");
+      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,MSgroup,SimGalID,HaloID,SimHaloMass\n");
       for(i = 1; i <= nsample; ++i){
-        igrp = group_member[i];
-        j = group_center[igrp];
+        
+        k = indx[i];
+        igrp = group_member[k];
+        j = group_index[igrp];
 
-        if(i == j)
+        if(k == j)
           theta = 0;
-        if(i != j)
-            theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+        if(k != j)
+            theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%d,%d,%f\n", i, ra[i], dec[i], redshift[i]/speedOfLight, m_stellar[i], group_member[i], prob_total[i], j, mass[j], rad[j],theta, theta/angRad[j],HaloID[i],GalID[i],m_halo[i]);
+        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%d,%d,%f\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
+
       }
       fclose(fp);
-
-    }
-
     }
   }
 
