@@ -311,7 +311,6 @@ int main(int argc, char **argv){
     for(i = 1; i <= nsample; ++i) {
       m_stellar[i] = -m_stellar[i];
       tempArray[i] = m_stellar[i];
-      printf("%ld\n",HaloID[i]);
     }
     // Store m_stellar in this temporary array. Before each sort, reassign m_stellar to this array; otherwise sorting won't happen as m_stellar will have already been sorted! Don't you just love C? Make sure the last one isn't temparray though, or m_stellar won't get sorted.
 
