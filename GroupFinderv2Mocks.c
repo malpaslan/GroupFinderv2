@@ -51,7 +51,6 @@ void spline(float x[], float y[], int n, float yp1, float ypn, float y2[]);
 void splint(float xa[], float ya[], float y2a[], int n, float x, float *y);
 void sort2(int n, float arr[], int id[]);
 void sort3(int n, float arr[], float brr[]);
-void longsort(int n, float arr[], long id[]);
 float qtrap(float (*func)(float), float a, float b);
 float *vector(long nl, long nh);
 int *ivector(long nl, long nh);
@@ -98,8 +97,7 @@ float GALAXY_DENSITY, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 int main(int argc, char **argv){
 
   int i, j, k, igrp, ngal, nsample, count, imax, *GalID;
-  int *indx, *central_flag;
-  long *HaloID;
+  int *indx, *HaloID, *central_flag;
   int *group_member, *group_index, *group_center, *temp_group;
   int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
 
@@ -166,7 +164,7 @@ int main(int argc, char **argv){
   m_halo = vector(1, ngal);
   central_flag = ivector(1, ngal);
   indx = ivector(1, ngal);
-  HaloID = lvector(1, ngal);
+  HaloID = ivector(1, ngal);
   GalID = ivector(1, ngal);
 
   for(i = 1; i <= ngal; ++i){
@@ -176,7 +174,7 @@ int main(int argc, char **argv){
     if(i == 1)
       fgets(string,1000,fp);
 
-    fscanf(fp,"%d,%f,%f,%f,%f,%d,%f,%ld",&GalID[i],&ra[i],&dec[i],&redshift[i], &m_stellar[i], &central_flag[i],&m_halo[i], &HaloID[i]);
+    fscanf(fp,"%d,%f,%f,%f,%f,%d,%f,%d",&GalID[i],&ra[i],&dec[i],&redshift[i], &m_stellar[i], &central_flag[i],&m_halo[i], &HaloID[i]);
     ra[i] *= pi/180;
     dec[i] *= pi/180;
     indx[i] = i;
@@ -217,8 +215,7 @@ int main(int argc, char **argv){
   // Before proceeding, go back through and truncate existing arrays to only contain galaxies from the volume limited sample.
 
   float *temp_ra,*temp_dec,*temp_redshift,*temp_m_stellar, *temp_m_halo;
-  int *temp_indx, *temp_central_flag, *temp_origGalID;
-  long *temp_HaloID;
+  int *temp_indx, *temp_HaloID, *temp_central_flag, *temp_origGalID;
 
   temp_ra = vector(1, nsample);
   temp_dec = vector(1, nsample);
@@ -226,7 +223,7 @@ int main(int argc, char **argv){
   temp_m_stellar = vector(1, nsample);
   temp_m_halo = vector(1, nsample);
   temp_indx = ivector(1, nsample);
-  temp_HaloID = lvector(1, nsample);
+  temp_HaloID = ivector(1, nsample);
   temp_origGalID = ivector(1, nsample);
   temp_central_flag = ivector(1, nsample);
 
@@ -261,7 +258,7 @@ int main(int argc, char **argv){
     redshift = vector(1,nsample);
     m_stellar = vector(1, nsample);
     m_halo = vector(1, nsample);
-    HaloID = lvector(1, nsample);
+    HaloID = ivector(1, nsample);
     central_flag = ivector(1, nsample);
     indx = ivector(1, nsample);
     GalID = ivector(1,nsample);
@@ -324,7 +321,7 @@ int main(int argc, char **argv){
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort3(nsample, tempArray, m_halo);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
-    longsort(nsample, tempArray, HaloID);
+    sort2(nsample, tempArray, HaloID);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort2(nsample, tempArray, central_flag);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
@@ -595,7 +592,7 @@ int main(int argc, char **argv){
       for(i = 1; i <= ngrp; ++i){
         j = group_index[i];
         k = group_center[j];
-        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%ld,%f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],HaloID[k],m_halo[k]);
       }
       fclose(fp);
 
@@ -613,7 +610,7 @@ int main(int argc, char **argv){
         if(k != j)
             theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%d,%ld,%f\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%d,%d,%f\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
 
       }
       fclose(fp);

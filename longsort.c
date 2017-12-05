@@ -7,7 +7,7 @@
 
 void longsort(int n, float arr[], long id[])
 {
-	unsigned long i,ir=n,j,k,l=1;
+	long i,ir=n,j,k,l=1;
 	int jstack=0,*istack;
 	float a,temp,temp_Id;
 	int temp_m,itemp;
