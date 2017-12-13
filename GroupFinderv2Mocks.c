@@ -67,7 +67,7 @@ float distance_redshift(float z);
 float angular_separation(float a1, float d1, float a2, float d2);
 float find_satellites(int i, float *ra, float *dec, float *redshift, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd);
 float radial_probability(float mass, float dr, float rad, float ang_rad);
-int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, int igrp, float radius, float *m_stellar, float nsat);
+int iter_central_galaxy(int galID, float *ra, float *dec, float *redshift ,int *group_member, int ngal, int igrp, float *m_stellar);
 float segvol(float lorad, float hirad, float lodec, float hidec, float lora, float hira);
 float segarea(float lorad, float hirad, float lodec, float hidec, float lora, float hira);
 
@@ -137,7 +137,7 @@ int main(int argc, char **argv){
   // Import VAGC main catalogue (RA, Dec, z). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
 
-  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/offMock_HaloID.csv";
+  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiz02_HaloID.csv";
 
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
@@ -310,6 +310,7 @@ int main(int argc, char **argv){
       tempArray[i] = m_stellar[i];
     }
     // Store m_stellar in this temporary array. Before each sort, reassign m_stellar to this array; otherwise sorting won't happen as m_stellar will have already been sorted! Don't you just love C? Make sure the last one isn't temparray though, or m_stellar won't get sorted.
+
 
     sort2(nsample, tempArray, indx);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
@@ -551,9 +552,9 @@ int main(int argc, char **argv){
 
       // What's the new group center?
 
-      if(nsat[k] < -2){
-        j = central_galaxy(k, ra, dec, group_member, nsample, igrp, angRad[k], m_stellar,nsat[k]);
-      
+      if(nsat[k] > 3){
+        j = iter_central_galaxy(k, ra, dec, redshift, group_member, nsample, igrp, m_stellar);
+    
         if(j != k){
           group_center[igrp] = j;
           k = j;
@@ -586,7 +587,7 @@ int main(int argc, char **argv){
     if(niter == niter_max){
       printf("** Iterations complete! Writing output to file... **\n\n");
 
-      ff = "/Users/mehmet/Desktop/offmockGroupsv2.csv";
+      ff = "/Users/mehmet/Desktop/bolshoiz02Groups.csv";
       fp = fopen(ff,"w");
       fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,HaloID,SimHaloMass\n");
       for(i = 1; i <= ngrp; ++i){
@@ -596,7 +597,7 @@ int main(int argc, char **argv){
       }
       fclose(fp);
 
-      ff = "/Users/mehmet/Desktop/offmockGalsv2.csv";
+      ff = "/Users/mehmet/Desktop/bolshoiz02Gals.csv";
       fp = fopen(ff,"w");
       fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,MSgroup,SimGalID,HaloID,SimHaloMass\n");
       for(i = 1; i <= nsample; ++i){
@@ -836,6 +837,167 @@ int central_galaxy(int i, float *ra, float *dec, int *group_member, int ngal, in
   return imax;
 
 }
+
+int iter_central_galaxy(int galID, float *ra, float *dec, float *redshift ,int *group_member, int ngal, int igrp, float *m_stellar){
+  int goodGals[2];
+  int i, k, l, *groupGals, icnt, IterCenID, maxDistID, *rejectGals;
+  int maxDistLoc, remainingGals;
+  float xcen = 0., ycen = 0., zcen = 0., Msum = 0., *distToCoM, maxDist, cenDist, satDist;
+  double cen[3], sat[3];
+  
+    
+  // The purpose of this function is to compute the iterative central galaxy for a group, in the style of Robotham et al. 2011.
+
+  // This is done by iteratively computing the centre of mass for the group, and rejecting the galaxy furthest from it. Once there are only 2 remaining galaxies, the more massive galaxy is chosen to be the group centre.
+
+  // Begin with target group, and find all galaxies within it by scanning the group_member array.
+
+  icnt = 0;
+  for(i = 1; i <= ngal; ++i){
+    if(group_member[i] == igrp){
+      icnt++;
+      Msum += m_stellar[i];
+    }
+  }
+  
+  groupGals = ivector(1, icnt);
+
+  icnt = 0;
+  for(i = 1; i <= ngal; ++i){
+    if(group_member[i] == igrp){
+      icnt++;
+      groupGals[icnt] = i;
+    }
+  }
+  
+  distToCoM = vector(1,icnt);
+  rejectGals = ivector(1, icnt);
+  for(i = 1; i <= icnt; ++i){
+    rejectGals[i] = 0;
+  }
+  maxDistLoc = 1;
+  remainingGals = icnt;
+
+  // Start by computing the centre of mass for the full group.
+
+  for(k = 1; k <= icnt; ++k){
+
+    i = groupGals[k];
+    
+    cenDist = distance_redshift(redshift[i]/speedOfLight);
+    cen[0] = cenDist * cos(ra[i]) * cos(dec[i]); // x
+    cen[1] = cenDist * sin(ra[i]) * cos(dec[i]); // y
+    cen[2] = cenDist * sin(dec[i]); // z
+    
+    xcen += m_stellar[i] * cen[0];
+    ycen += m_stellar[i] * cen[1];
+    zcen += m_stellar[i] * cen[2];
+
+  }
+
+  xcen /= Msum;
+  ycen /= Msum;
+  zcen /= Msum;
+
+  // These are the xyz coords of the first centre of mass. Loop through group and throw away furthest galaxy. Do this until icnt drops to 2.
+
+    while(remainingGals > 2){
+
+      for(k = 1; k <= icnt; ++k){
+
+        if(rejectGals[k] != 0)
+        continue;
+
+        i = groupGals[k];
+
+        satDist = distance_redshift(redshift[i]/speedOfLight);
+      sat[0] = satDist * cos(ra[i]) * cos(dec[i]); // x
+      sat[1] = satDist * sin(ra[i]) * cos(dec[i]); // y
+      sat[2] = satDist * sin(dec[i]); // z
+
+      distToCoM[k] = sqrt((xcen - sat[0])*(xcen-sat[0]) + (ycen - sat[1])*(ycen-sat[1]) + (zcen - sat[2])*(zcen-sat[2]));
+
+      }
+
+      // Find maximum distance. Grab the ID and the location in the array where it is.
+
+      maxDist = 0;
+      for(i = 1; i <= icnt; ++i){
+        k = groupGals[i];
+        if(distToCoM[i] > maxDist){
+          maxDist = distToCoM[i];
+          maxDistID = k;
+          maxDistLoc = i;
+        }
+      }
+
+      // Discard furthest galaxy and decrease remainingGals by 1. Remove this galaxy's stellar mass from total stellar mass.
+
+      --remainingGals;
+      rejectGals[maxDistLoc] = maxDistID;
+      Msum -= m_stellar[maxDistID];
+
+      // Clean various bits and pieces for next step in loop.
+
+      for(i = 1; i <= icnt; ++i){
+        distToCoM[i] = 0.;
+      }
+
+      // Compute new centre of mass position.
+    
+      for(k = 1; k <= icnt; ++k){
+        if(rejectGals[k] != 0)
+          continue;
+
+      i = groupGals[k];
+      
+      cenDist = distance_redshift(redshift[i]/speedOfLight);
+      cen[0] = cenDist * cos(ra[i]) * cos(dec[i]); // x
+      cen[1] = cenDist * sin(ra[i]) * cos(dec[i]); // y
+      cen[2] = cenDist * sin(dec[i]); // z
+      
+      xcen += m_stellar[i] * cen[0];
+      ycen += m_stellar[i] * cen[1];
+      zcen += m_stellar[i] * cen[2];
+
+    }
+
+    xcen /= Msum;
+    ycen /= Msum;
+    zcen /= Msum;
+
+      // printf("%d %d %d %d\n",icnt, remainingGals, counter-1, maxDistID);
+  }
+
+  // There should only be two galaxies remaining now. Pick the one with the greater stellar mass as the group center.
+
+  l = 0;
+  for(k = 1; k <= icnt; ++k){
+
+    if(rejectGals[k] != 0)
+        continue;
+
+    i = groupGals[k];
+
+    goodGals[l] = i;
+    ++l;
+  }
+
+  if(m_stellar[goodGals[0]] > m_stellar[goodGals[1]]){
+    IterCenID = goodGals[0];
+  }
+  if(m_stellar[goodGals[0]] < m_stellar[goodGals[1]]){
+    IterCenID = goodGals[1];
+  }
+  
+
+  free_vector(distToCoM,1,icnt);
+  free_ivector(groupGals,1,icnt);
+  free_ivector(rejectGals,1,icnt-2);
+  return IterCenID;
+
+}
+
 
 // static double dist_sq( double *a1, double *a2, int dims ) {
 //   double dist_sq = 0, diff;
