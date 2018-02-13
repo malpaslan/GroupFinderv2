@@ -137,7 +137,7 @@ int main(int argc, char **argv){
   // Import VAGC main catalogue (RA, Dec, z). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
 
-  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiz03_HaloID.csv";
+  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiz01_HaloID.csv";
 
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
