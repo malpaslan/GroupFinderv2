@@ -32,8 +32,8 @@
 #define third (1.0/3.0)
 #define ang (pi/180.0)
 #define rt2Pi 2.50663
-#define czMax 26000.0
-#define czMin 6000.0
+#define czMax 25502.0
+#define czMin 6001.0
 #define czBuf 0
 //#define REDSHIFT (12000.0/SPEED_OF_LIGHT)// -18
 //#define MAGNITUDE -18.0
@@ -97,7 +97,7 @@ float GALAXY_DENSITY, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 int main(int argc, char **argv){
 
   int i, j, k, igrp, ngal, nsample, count, imax, *GalID;
-  int *indx, *HaloID, *central_flag;
+  int *indx, *HaloID, *central_flag, *color_flag;
   int *group_member, *group_index, *group_center, *temp_group;
   int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
 
@@ -137,7 +137,7 @@ int main(int argc, char **argv){
   // Import VAGC main catalogue (RA, Dec, z). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
 
-  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiz01_HaloID.csv";
+  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiColor_input.csv";
 
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
@@ -145,7 +145,10 @@ int main(int argc, char **argv){
       exit(0);
     }
 
-    // This measures the length of the file.
+  // Skip first line of this file. It will have a header line, as it is a CSV.
+  fgets(string,1000,fp);
+
+  // This measures the length of the file.
 
   while(fgets(string,1000,fp)){
       count++;
@@ -163,6 +166,7 @@ int main(int argc, char **argv){
   m_stellar = vector(1, ngal);
   m_halo = vector(1, ngal);
   central_flag = ivector(1, ngal);
+  color_flag = ivector(1, ngal);
   indx = ivector(1, ngal);
   HaloID = ivector(1, ngal);
   GalID = ivector(1, ngal);
@@ -174,11 +178,12 @@ int main(int argc, char **argv){
     if(i == 1)
       fgets(string,1000,fp);
 
-    fscanf(fp,"%d,%f,%f,%f,%f,%d,%f,%d",&GalID[i],&ra[i],&dec[i],&redshift[i], &m_stellar[i], &central_flag[i],&m_halo[i], &HaloID[i]);
+    fscanf(fp,"%f,%f,%f,%f,%f,%d,%d,%d",&ra[i],&dec[i],&redshift[i], &m_stellar[i], &m_halo[i], &HaloID[i], &central_flag[i], &color_flag[i]);
+    GalID[i] = i;
     ra[i] *= pi/180;
     dec[i] *= pi/180;
     indx[i] = i;
-    m_stellar[i] = pow(10.,m_stellar[i]);
+    m_stellar[i] = pow(10.0,m_stellar[i]);
     fgets(string,1000,fp);
   }
 
@@ -196,6 +201,7 @@ int main(int argc, char **argv){
   }
 
   nsample = count;
+  printf("%d %d\n",ngal,nsample);
 
   mass = vector(1, nsample);
   rad = vector(1, nsample);
@@ -216,7 +222,7 @@ int main(int argc, char **argv){
   // Before proceeding, go back through and truncate existing arrays to only contain galaxies from the volume limited sample.
 
   float *temp_ra,*temp_dec,*temp_redshift,*temp_m_stellar, *temp_m_halo;
-  int *temp_indx, *temp_HaloID, *temp_central_flag, *temp_origGalID;
+  int *temp_indx, *temp_HaloID, *temp_central_flag, *temp_origGalID, *temp_color_flag;
 
   temp_ra = vector(1, nsample);
   temp_dec = vector(1, nsample);
@@ -227,6 +233,7 @@ int main(int argc, char **argv){
   temp_HaloID = ivector(1, nsample);
   temp_origGalID = ivector(1, nsample);
   temp_central_flag = ivector(1, nsample);
+  temp_color_flag = ivector(1, nsample);
 
     j = 1;
     for(i = 1; i <= ngal; ++i){
@@ -238,6 +245,7 @@ int main(int argc, char **argv){
         temp_m_halo[j] = m_halo[i];
         temp_HaloID[j] = HaloID[i];
         temp_central_flag[j] = central_flag[i];
+        temp_color_flag[j] = color_flag[i];
         temp_origGalID[j] = GalID[i];
         temp_indx[j] = j;
         ++j;
@@ -251,6 +259,7 @@ int main(int argc, char **argv){
     free(m_halo);
     free(HaloID);
     free(central_flag);
+    free(color_flag);
     free(indx);
     free(GalID);
 
@@ -261,8 +270,10 @@ int main(int argc, char **argv){
     m_halo = vector(1, nsample);
     HaloID = ivector(1, nsample);
     central_flag = ivector(1, nsample);
+    color_flag = ivector(1, nsample);
     indx = ivector(1, nsample);
     GalID = ivector(1,nsample);
+
     indx = temp_indx;
     ra = temp_ra;
     dec = temp_dec;
@@ -274,6 +285,7 @@ int main(int argc, char **argv){
     HaloID = temp_HaloID;
     GalID = temp_origGalID;
     central_flag = temp_central_flag;
+    color_flag = temp_color_flag;
 
     // Whew, all done. Now clear variables and proceed. This whole process should result in a series of arrays of length nsample that only contain galaxies in a volume limited sample.
 
@@ -326,6 +338,8 @@ int main(int argc, char **argv){
     sort2(nsample, tempArray, HaloID);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort2(nsample, tempArray, central_flag);
+    for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
+    sort2(nsample, tempArray, color_flag);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort2(nsample, m_stellar, GalID);
 
@@ -601,7 +615,7 @@ int main(int argc, char **argv){
 
       ff = "/Users/mehmet/Desktop/bolshoiz01Gals.csv";
       fp = fopen(ff,"w");
-      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass\n");
+      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
       for(i = 1; i <= nsample; ++i){
         
         k = indx[i];
@@ -613,7 +627,7 @@ int main(int argc, char **argv){
         if(k != j)
             theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f,%d\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k],color_flag[k]);
 
       }
       fclose(fp);
