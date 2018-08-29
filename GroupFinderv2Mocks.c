@@ -372,9 +372,9 @@ int main(int argc, char **argv){
     for(i = 1; i <= nsample; ++i){
       ndens_gal += 1/volume;
       mass[i] = density2halo(ndens_gal);
-      rad[i] = pow((3*mass[i]) / (4.0 * pi * dHalo *rhoCrit * omegaM), third);
+      rad[i] = pow((3 * mass[i]) / (4.0 * pi * dHalo * rhoCrit * omegaM), third);
       angRad[i] = rad[i] / distance_redshift(redshift[i]/speedOfLight);
-      sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i])*(1+redshift[i]/speedOfLight));
+      sigma[i] = sqrt((bigG * mass[i])/(2.0 * rad[i]) * (1 + redshift[i] / speedOfLight));
     }
     
   printf("** SHAMmed galaxies. **\n\n");
