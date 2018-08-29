@@ -32,8 +32,8 @@
 #define third (1.0/3.0)
 #define ang (pi/180.0)
 #define rt2Pi 2.50663
-#define czMax 25502.0
-#define czMin 6001.0
+#define czMax 26000.0
+#define czMin 6000.0
 #define czBuf 0
 //#define REDSHIFT (12000.0/SPEED_OF_LIGHT)// -18
 //#define MAGNITUDE -18.0
@@ -97,7 +97,7 @@ float GALAXY_DENSITY, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
 int main(int argc, char **argv){
 
   int i, j, k, igrp, ngal, nsample, count, imax, *GalID;
-  int *indx, *HaloID, *central_flag, *color_flag;
+  int *indx, *HaloID, *central_flag;
   int *group_member, *group_index, *group_center, *temp_group;
   int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
 
@@ -114,7 +114,8 @@ int main(int argc, char **argv){
   double ndens_gal = 0;
 
   char string[1000];
-  char *ff;
+  char outpath_grp[10000], outpath_gal[10000];
+  char ff[10000];
   FILE *fp;
   start = get_msec();
   count = 0;
@@ -136,23 +137,25 @@ int main(int argc, char **argv){
 
   // Import VAGC main catalogue (RA, Dec, z). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
+  // argv[1] should be the file NAME, not path.
+  sprintf(ff,"/export/sirocco2/tinker/NEXTGEN_GROUPS/TWOPROP_GROUPS/%s",argv[1]); 
+  sprintf(outpath_grp,"/export/sirocco2/tinker/NEXTGEN_GROUPS/TWOPROP_GROUPS/output/output_grp_%s",argv[1]);
+  sprintf(outpath_gal,"/export/sirocco2/tinker/NEXTGEN_GROUPS/TWOPROP_GROUPS/output/output_gal_%s",argv[1]);
 
-  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiColor_input.csv";
-
+  printf("Reading in %s...\n",ff);
+  
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
       printf("ERROR opening [%s]\n",ff);
       exit(0);
     }
 
-  // Skip first line of this file. It will have a header line, as it is a CSV.
-  fgets(string,1000,fp);
-
-  // This measures the length of the file.
+    // This measures the length of the file.
 
   while(fgets(string,1000,fp)){
       count++;
   }
+ 
   rewind(fp);
   // Assign count to ngal; this is the number of galaxies.
 
@@ -166,26 +169,22 @@ int main(int argc, char **argv){
   m_stellar = vector(1, ngal);
   m_halo = vector(1, ngal);
   central_flag = ivector(1, ngal);
-  color_flag = ivector(1, ngal);
   indx = ivector(1, ngal);
   HaloID = ivector(1, ngal);
   GalID = ivector(1, ngal);
 
   for(i = 1; i <= ngal; ++i){
 
-    // Skip first line of mocks_HaloID.csv as this contains header info.
+    fscanf(fp,"%f %f %f %f %f %*d %*d %*d",&ra[i],&dec[i],&redshift[i], &m_stellar[i], &m_halo[i]);
 
-    if(i == 1)
-      fgets(string,1000,fp);
-
-    fscanf(fp,"%f,%f,%f,%f,%f,%d,%d,%d",&ra[i],&dec[i],&redshift[i], &m_stellar[i], &m_halo[i], &HaloID[i], &central_flag[i], &color_flag[i]);
-    GalID[i] = i;
     ra[i] *= pi/180;
     dec[i] *= pi/180;
     indx[i] = i;
-    m_stellar[i] = pow(10.0,m_stellar[i]);
+    GalID[i] = i;
+    HaloID[i] = i;
+    //m_stellar[i] = pow(10.,m_stellar[i]);
     fgets(string,1000,fp);
-  }
+      }
 
   fclose(fp);
   printf("Mock data read in.\n");
@@ -201,7 +200,6 @@ int main(int argc, char **argv){
   }
 
   nsample = count;
-  printf("%d %d\n",ngal,nsample);
 
   mass = vector(1, nsample);
   rad = vector(1, nsample);
@@ -222,7 +220,7 @@ int main(int argc, char **argv){
   // Before proceeding, go back through and truncate existing arrays to only contain galaxies from the volume limited sample.
 
   float *temp_ra,*temp_dec,*temp_redshift,*temp_m_stellar, *temp_m_halo;
-  int *temp_indx, *temp_HaloID, *temp_central_flag, *temp_origGalID, *temp_color_flag;
+  int *temp_indx, *temp_HaloID, *temp_central_flag, *temp_origGalID;
 
   temp_ra = vector(1, nsample);
   temp_dec = vector(1, nsample);
@@ -232,9 +230,7 @@ int main(int argc, char **argv){
   temp_indx = ivector(1, nsample);
   temp_HaloID = ivector(1, nsample);
   temp_origGalID = ivector(1, nsample);
-  temp_central_flag = ivector(1, nsample);
-  temp_color_flag = ivector(1, nsample);
-
+  
     j = 1;
     for(i = 1; i <= ngal; ++i){
       if(redshift[i] <= MAXREDSHIFT && redshift[i] >= MINREDSHIFT){
@@ -244,8 +240,6 @@ int main(int argc, char **argv){
         temp_m_stellar[j] = m_stellar[i];
         temp_m_halo[j] = m_halo[i];
         temp_HaloID[j] = HaloID[i];
-        temp_central_flag[j] = central_flag[i];
-        temp_color_flag[j] = color_flag[i];
         temp_origGalID[j] = GalID[i];
         temp_indx[j] = j;
         ++j;
@@ -258,8 +252,6 @@ int main(int argc, char **argv){
     free(m_stellar);
     free(m_halo);
     free(HaloID);
-    free(central_flag);
-    free(color_flag);
     free(indx);
     free(GalID);
 
@@ -269,11 +261,8 @@ int main(int argc, char **argv){
     m_stellar = vector(1, nsample);
     m_halo = vector(1, nsample);
     HaloID = ivector(1, nsample);
-    central_flag = ivector(1, nsample);
-    color_flag = ivector(1, nsample);
     indx = ivector(1, nsample);
     GalID = ivector(1,nsample);
-
     indx = temp_indx;
     ra = temp_ra;
     dec = temp_dec;
@@ -284,9 +273,7 @@ int main(int argc, char **argv){
     m_halo = temp_m_halo;
     HaloID = temp_HaloID;
     GalID = temp_origGalID;
-    central_flag = temp_central_flag;
-    color_flag = temp_color_flag;
-
+  
     // Whew, all done. Now clear variables and proceed. This whole process should result in a series of arrays of length nsample that only contain galaxies in a volume limited sample.
 
     // Finished importing data!
@@ -336,10 +323,6 @@ int main(int argc, char **argv){
     sort3(nsample, tempArray, m_halo);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort2(nsample, tempArray, HaloID);
-    for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
-    sort2(nsample, tempArray, central_flag);
-    for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
-    sort2(nsample, tempArray, color_flag);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort2(nsample, m_stellar, GalID);
 
@@ -568,7 +551,7 @@ int main(int argc, char **argv){
 
       // What's the new group center? Also compute distance between most massive galaxy and the group center.
 
-      if(nsat[k] > 3){
+      if(nsat[k] < -3){
         j = iter_central_galaxy(k, ra, dec, redshift, group_member, nsample, igrp, m_stellar, &distToBig[i]);
     
         if(j != k){
@@ -601,24 +584,29 @@ int main(int argc, char **argv){
     // If niter = niter_max, time to output!
 
     if(niter == niter_max){
-      printf("** Iterations complete! Writing output to file... **\n\n");
+      printf("** Iterations complete! Writing output to file to: ** \n groups: %s \n galaxies: %s\n\n", outpath_grp, outpath_gal);
 
-      ff = "/Users/mehmet/Desktop/bolshoiz01Groups.csv";
-      fp = fopen(ff,"w");
+      //ff = outpath_grp;
+      fp = fopen(outpath_grp,"w");
       fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
       for(i = 1; i <= ngrp; ++i){
         j = group_index[i];
         k = group_center[j];
-        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],distToBig[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d %f %f %f %d %f %f %f %f %f %f %f %f %d %f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],distToBig[k],HaloID[k],m_halo[k]);
       }
       fclose(fp);
 
-      ff = "/Users/mehmet/Desktop/bolshoiz01Gals.csv";
-      fp = fopen(ff,"w");
-      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
+      //ff = outpath_gal;
+      fp = fopen(outpath_gal,"w");
+      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,psat,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass\n");
+      
+      // Need output to be in the original order.
+
       for(i = 1; i <= nsample; ++i){
         
-        k = indx[i];
+        k = 1;
+        while(i != GalID[k]) ++k;
+
         igrp = group_member[k];
         j = group_index[igrp];
 
@@ -627,7 +615,7 @@ int main(int argc, char **argv){
         if(k != j)
             theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f,%d\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k],color_flag[k]);
+        fprintf(fp,"%d %f %f %f %f %d %f %d %f %f %f %f %f %f %d %d %f\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
 
       }
       fclose(fp);

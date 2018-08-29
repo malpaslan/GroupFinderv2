@@ -1,0 +1,14 @@
+!#/bin/bash
+#PBS -l nodes=1
+#PBS -j oe
+
+cd /home/users/ma5046/GroupFinderv2
+for ((i = 0; i <= 99; i++))
+  do
+  if[ (($i % 24 == 0)) ]  wait
+  j = $i + 100
+  ./gfv2mock sham_mock_i${j}.rdz
+  done
+
+exit
+

@@ -1,7 +1,7 @@
 // As GroupFinderv2, but designed to run on mock catalogue. Modified to include a weighting factor to upscale or downscale stellar masses of red centrals.
 
 // For self: compile command --
-// gcc -o gfv2mockCol GroupFinderv2Mocks_ColWeight.c *.o -L/Users/mehmet/Dropbox/libC_main -lC_main -Wall -lm
+// gcc -o gfv2mockCol GroupFinderv2Mocks_ColWeight.c *.o -L/home/users/ma5046/libC_main -lC_main -lm
    
 // Initialization //
 
@@ -108,7 +108,10 @@ int main(int argc, char **argv){
   float volume;
   float red_weight;
   float x, y, z, radius, theta;
-  unsigned int msec, start;
+  clock_t end1,end2,end3,end4, start1,start2,start3,start4,startall, endall, startout,endout;
+
+  float *zone2, *zone3, *zone4, zone1t, zone2t, zone3t, zone4t;
+  double zoneinit, zoneout;
 
   void *kd;
 
@@ -117,9 +120,15 @@ int main(int argc, char **argv){
   char string[1000];
   char *ff;
   FILE *fp;
-  start = get_msec();
+  startall = clock();
+  start1 = clock();
   count = 0;
   niter_max = 10;
+  
+  zone2t = zone3t = zone4t = 0.0;
+  zone2 = vector(1, niter_max);
+  zone3 = vector(1, niter_max);
+  zone4 = vector(1, niter_max);
 
   MAXREDSHIFT = czMax / speedOfLight;
   MINREDSHIFT = czMin / speedOfLight;
@@ -138,27 +147,27 @@ int main(int argc, char **argv){
   // Import VAGC main catalogue (RA, Dec, z). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
 
-  ff = "/Users/mehmet/Dropbox/nyucosmo/mocks/bolshoiColor_input.csv";
-
+  ff = "/home/users/ma5046/misc_work/mocks/bolshoiColor_input.csv";
+ 
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
       printf("ERROR opening [%s]\n",ff);
       exit(0);
     }
-
+  
   // Skip first line of this file. It will have a header line, as it is a CSV.
   fgets(string,1000,fp);
 
   // This measures the length of the file.
-
+  
   while(fgets(string,1000,fp)){
       count++;
   }
   rewind(fp);
   // Assign count to ngal; this is the number of galaxies.
-
+  
   ngal = count;
-
+  printf("Red weight is %f\n",atof(argv[1]));
   // Each variable that holds a different galaxy property can now be made into an array going from 1 to ngal.
 
   ra = vector(1,ngal);
@@ -432,7 +441,7 @@ int main(int argc, char **argv){
     // This is where we insert the weighting factor. If the central galaxy is red, apply the red weight to its stellar mass.
 
     if(color_flag[i] == 1) 
-      red_weight = 0.66;
+      red_weight = atof(argv[1]);
     else 
       red_weight = 1.0;
     group_mass[igrp] = m_stellar[i]*red_weight;
@@ -472,13 +481,14 @@ int main(int argc, char **argv){
   }
 
   printf("** SHAMmed groups! Now iterating to convergence... ** \n\n");
-
+  end1 = clock();
+  zoneinit = (double)(end1 - start1) / CLOCKS_PER_SEC;
   // This is the main iteration loop.
 
   for(niter = 1; niter <= niter_max; ++niter){
 
     // Begin by resetting group membership.
-
+    start2 = clock();
     printf("Iteration %d of %d... \n", niter, niter_max);
 
     for(i = 1; i <= nsample; ++i){
@@ -501,11 +511,13 @@ int main(int argc, char **argv){
     igrp = ngrp = 0;
     k = 0;
     nsat_tot = 0;
-
+    end2 = clock();
+    zone2[niter] = (float)(end2-start2) / CLOCKS_PER_SEC;
+    
     // Reset complete!
 
     // Perform satellite identification for current iteration of the groups.
-    
+    start3 = clock();  
     for(i = 1; i <= ngrp_temp; ++i){
 
       // i = temp_group[j];
@@ -521,7 +533,7 @@ int main(int argc, char **argv){
       // Apply red weighting again.
 
       if(color_flag[i] == 1) 
-        red_weight = 0.66;
+        red_weight = atof(argv[1]);
       else 
         red_weight = 1.0;
       group_mass[igrp] = m_stellar[i] * red_weight;
@@ -569,7 +581,6 @@ int main(int argc, char **argv){
     for(i = 1; i <= ngrp; ++i){
       group_index[i] = i;
     }
-
     // Sort this iteration's groups by mass (descending).
 
     for(i = 1; i <= ngrp; ++i)
@@ -577,8 +588,12 @@ int main(int argc, char **argv){
     sort2(ngrp, group_mass, group_index);
     for(i = 1; i <= ngrp; ++i)
       group_mass[i] *= -1;
+    end3 = clock(); 
+    zone3[niter] = (float)(end3-start3) / CLOCKS_PER_SEC;
 
     // Now perform abundance matching on this new set of groups. Must first determine new group centres based on updated group composition, however. Make sure not to run on satellites.
+
+    start4 = clock();
 
     for(i = 1; i <= ngrp; ++i){
 
@@ -616,13 +631,15 @@ int main(int argc, char **argv){
         }
       }
     }
-
+    end4 = clock();
+    zone4[niter] = (float)(end4-start4) / CLOCKS_PER_SEC;
     // If niter = niter_max, time to output!
 
     if(niter == niter_max){
+      startout = clock();
       printf("** Iterations complete! Writing output to file... **\n\n");
 
-      ff = "/Users/mehmet/Desktop/bolshoiz01Groups.csv";
+      ff = "/home/users/ma5046/misc_work/output/bolshoiz01cGroups.csv";
       fp = fopen(ff,"w");
       fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
       for(i = 1; i <= ngrp; ++i){
@@ -632,7 +649,7 @@ int main(int argc, char **argv){
       }
       fclose(fp);
 
-      ff = "/Users/mehmet/Desktop/bolshoiz01Gals.csv";
+      ff = "/home/users/ma5046/misc_work/output/bolshoiz01cGals.csv";
       fp = fopen(ff,"w");
       fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
       for(i = 1; i <= nsample; ++i){
@@ -650,11 +667,29 @@ int main(int argc, char **argv){
 
       }
       fclose(fp);
+      endout = clock();
+      zoneout = (double)(endout - startout) / CLOCKS_PER_SEC;
     }
-  }
 
-  msec = get_msec() - start;
-  printf("%.3f sec\n", (float)msec / 1000.0); 
+  }
+  
+  endall = clock();
+  printf("%f %f\n",startall/CLOCKS_PER_SEC,endall/CLOCKS_PER_SEC);
+  printf("%.3f sec\n", (float)(endall-startall) / CLOCKS_PER_SEC);
+  
+  
+  for(i = 1; i <= 10; ++i){
+
+    zone2t += zone2[i];
+    zone3t += zone3[i];
+    zone4t += zone4[i];
+  }
+  
+  zone2t /= (float)niter_max;
+  zone3t /= (float)niter_max;
+  zone4t /= (float)niter_max;
+  printf("init %f sec\navg init step (reset membership) %f sec\navg iterative find_satellite %f sec\navg sorting + sham %f sec\noutput %lf sec\n",zoneinit, zone2t/10., zone3t/10., zone4t/10., zoneout);
+
   exit(0);
 }
 

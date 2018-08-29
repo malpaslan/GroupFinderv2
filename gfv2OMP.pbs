@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Set number of nodes and processors
+#PBS -l nodes=1:ppn=24
+
+# Set maximum allowed time
+#PBS -l walltime=1:00:00
+
+# Name process
+#PBS -N gfv2box
+
+# Set alerts (b)egging, (e)end, (a)bort
+#PBS -m bea
+
+# My e-mail
+#PBS -M mehmet.alpaslan@nyu.edu
+
+cd $PBS_O_WORKDIR
+cd /home/users/ma5046/GroupFinderv2
+./gfv2BoxColOMP 3 1 1 1

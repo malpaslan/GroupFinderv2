@@ -177,7 +177,7 @@ float halo_abundance(float m)
 
   if(!n)
     {
-      fp = openfile("censat_dndm.dat");
+      fp = openfile("/home/users/ma5046/GroupFinderv2/censat_dndm.dat");
       //fp = openfile("wmap1.massfunc");
       //fp = openfile("s8_0.7.massfunc");
       n = filesize(fp);

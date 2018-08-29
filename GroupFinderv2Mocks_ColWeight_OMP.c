@@ -67,7 +67,7 @@ float density2host_halo(float galaxy_density);
 
 float distance_redshift(float z);
 float angular_separation(float a1, float d1, float a2, float d2);
-float find_satellites(int i, float *ra, float *dec, float *redshift, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float cenDist, float range);
+float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_flag, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float cenDist, float range, float sw1, float sw2);
 float radial_probability(float mass, float dr, float rad, float ang_rad);
 int iter_central_galaxy(int galID, float *ra, float *dec, float *redshift ,int *group_member, int ngal, int igrp, float *m_stellar, float *massDist);
 float segvol(float lorad, float hirad, float lodec, float hidec, float lora, float hira);
@@ -105,7 +105,7 @@ int main(int argc, char **argv){
   int chunk = CHUNKSIZE;
 
   float *ra, *dec, *redshift, *m_stellar, *m_halo;
-  float *mass, *rad, *angRad, *sigma, *prob_total, *nsat, maxMass, *cenDist, *range;
+  float *mass, *rad, *angRad, *sigma, *prob_total, *nsat, maxMass, *cenDist, *range, sw1, sw2;
   float *group_mass, *distToBig;
   float x1, x2, *tempArray;
   float volume;
@@ -404,7 +404,11 @@ int main(int argc, char **argv){
 
   //printf("Number density = %3.3e\n\n",ndens_gal);
 
- // Now go through and find associated galaxies.
+  // Now go through and find associated galaxies.
+  // Send satellite color arguments to these floats, to then feed to find_satellites.
+  
+  sw1 = atof(argv[4]);
+  sw2 = atof(argv[3]);
 
   printf("** Identifying satellites...\n\n");
 
@@ -459,15 +463,15 @@ int main(int argc, char **argv){
       // This is where we insert the weighting factor. If the central galaxy is red, apply the red weight to its stellar mass.
 
       if(color_flag[i] == 1) 
-        red_weight = atof(argv[1]);
+        red_weight = (atof(argv[2]) * log10(m_stellar[i])) + atof(argv[1]);
       else 
         red_weight = 1.0;
-      group_mass[igrp] = m_stellar[i]*red_weight;
-
+      group_mass[igrp] = m_stellar[i] * red_weight;
+       
       group_center[igrp] = i;
       group_member[i] = igrp;
 
-      group_mass[igrp] += find_satellites(i, ra, dec, redshift, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar,&nsat[i],prob_total, kd, cenDist[i], range[i]);
+      group_mass[igrp] += find_satellites(i, ra, dec, redshift, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar,&nsat[i],prob_total, kd, cenDist[i], range[i], sw1, sw2);
       if(nsat[i] < 1)
         k++;
       nsat_tot += nsat[i];
@@ -506,7 +510,7 @@ int main(int argc, char **argv){
   zoneinit = (float)endinit / 1000.;
 
   for(niter = 1; niter <= niter_max; ++niter){
-    
+  
     // Begin by resetting group membership.
 
     start1 = get_msec();
@@ -560,14 +564,15 @@ int main(int argc, char **argv){
         // Apply red weighting again.
 
         if(color_flag[i] == 1) 
-          red_weight = atof(argv[1]);
+          red_weight = (atof(argv[2]) * log10(m_stellar[i])) + atof(argv[1]);
         else 
           red_weight = 1.0;
+        
         group_mass[igrp] = m_stellar[i] * red_weight;
         group_member[i] = igrp;
         group_center[igrp] = i;
 
-        group_mass[igrp] += find_satellites(i, ra, dec, redshift, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, cenDist[i], range[i]);
+        group_mass[igrp] += find_satellites(i, ra, dec, redshift, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, cenDist[i], range[i], sw1, sw2);
 
         if(nsat[i] == 0)
           k++;
@@ -600,7 +605,7 @@ int main(int argc, char **argv){
 
         nsat[i] = 0;
 
-        group_mass[igrp] += find_satellites(i, ra, dec, redshift, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, cenDist[i], range[i]);
+        group_mass[igrp] += find_satellites(i, ra, dec, redshift, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, cenDist[i], range[i], sw1, sw2);
 
         if(nsat[i] == 0)
           k++;
@@ -778,16 +783,16 @@ float radial_probability(float mass, float dr, float rad, float ang_rad){
 
 // This function uses the kdtree library written by John Tsiombikas <nuclear@member.fsf.org>.
 
-float find_satellites(int i, float *ra, float *dec, float *redshift, float theta_max, float sigma, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float cenDist, float range) {
+float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_flag, float theta_max, float sigma, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float cenDist, float range, float sw1, float sw2) {
   int j, k, setSize;
-  float dx, dy, dz, theta, prob_ang, prob_rad, grpMass, p0;
+  float dx, dy, dz, theta, prob_ang, prob_rad, grpMass, p0, sat_red_weight;
   void *set;
   int *pch;
   double cen[3];
-    double sat[3];
+  double sat[3];
   
   // Set up.
-
+  
   dy = 1;
   dx = 1;
   *nsat_cur = 0;
@@ -882,7 +887,14 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, float theta
     // At this point the galaxy is a satellite. Assign the group ID number to it, and add its mass to the total group mass. Increase satellite counter by 1.
 
     group_member[j] = igrp;
-    grpMass += m_stellar[j];
+    ;
+    // Check the satellite galaxy's color_flag variable. If it is set to 1, then apply the red weight for satellites.
+    if(color_flag[j] == 1)
+      sat_red_weight = (log10(m_stellar[j]) * sw1) + sw2;
+    else
+      sat_red_weight = 1;
+    
+    grpMass += (m_stellar[j] * sat_red_weight);
     (*nsat_cur) += 1;
   }
 //  }
