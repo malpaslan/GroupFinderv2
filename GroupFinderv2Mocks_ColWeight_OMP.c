@@ -150,7 +150,7 @@ int main(int argc, char **argv){
   // Import mock catalogue (RA, Dec, z). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
   //
-  ff = "/home/users/ma5046/misc_work/mocks/bolshoiColor_input.csv";
+  ff = "/home/users/ma5046/misc_work/mocks/sham_colormock_redshift0.3_sig0.1.rdz";
   
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
@@ -170,7 +170,8 @@ int main(int argc, char **argv){
   // Assign count to ngal; this is the number of galaxies.
 
   ngal = count;
-  printf("Red weight is %f\n",atof(argv[1]));
+  printf("Central red weight is %fx + %f\n",atof(argv[2]), atof(argv[1]));
+  printf("Satellite red weight is $fx + $f\n", atof(argv[4]), atof(argv[3]));
   // Each variable that holds a different galaxy property can now be made into an array going from 1 to ngal.
 
   ra = vector(1,ngal);
@@ -191,7 +192,7 @@ int main(int argc, char **argv){
     if(i == 1)
       fgets(string,1000,fp);
 
-    fscanf(fp,"%f,%f,%f,%f,%f,%d,%d,%d",&ra[i],&dec[i],&redshift[i], &m_stellar[i], &m_halo[i], &HaloID[i], &central_flag[i], &color_flag[i]);
+    fscanf(fp,"%f %f %f %f %f %d %d %d",&ra[i],&dec[i],&redshift[i], &m_stellar[i], &m_halo[i], &HaloID[i], &central_flag[i], &color_flag[i]);
     GalID[i] = i;
     ra[i] *= pi/180;
     dec[i] *= pi/180;
