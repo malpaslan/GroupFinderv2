@@ -17,4 +17,4 @@
 
 cd $PBS_O_WORKDIR
 cd /home/users/ma5046/GroupFinderv2
-./gfv2BoxColOMP 3 1 1 1
+./gfv2mockColOMP 3 1 1 1

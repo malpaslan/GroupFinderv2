@@ -1,0 +1,54 @@
+Magitude: -19.000000
+Min redshift: 0.020003
+Max redshift: 0.085007
+Volume: 8.137234e+06
+
+** Reading in data and defining sample. **
+Central red weight is 1.000000x + 3.000000
+Satellite red weight is $fx + $f
+Mock data read in.
+202857 202855
+** Finished reading in data! Sample defined. **
+
+202855 galaxies with 0.02000 < z < 0.08501.
+Vol 8.137234e+06
+
+** Sorting complete! **
+
+** SHAMmed galaxies. **
+
+** Identifying satellites...
+
+** First pass satellite identification complete: 
+145964 groups, 126582 n = 1 groups, fsat = 0.28 **
+
+** SHAMmed groups! Now iterating to convergence... ** 
+
+Iteration 1 of 10... 
+149279 groups, 131249 n = 1 groups, fsat = 0.26
+Iteration 2 of 10... 
+145874 groups, 127707 n = 1 groups, fsat = 0.28
+Iteration 3 of 10... 
+145472 groups, 127300 n = 1 groups, fsat = 0.28
+Iteration 4 of 10... 
+145382 groups, 127207 n = 1 groups, fsat = 0.28
+Iteration 5 of 10... 
+145364 groups, 127190 n = 1 groups, fsat = 0.28
+Iteration 6 of 10... 
+145357 groups, 127184 n = 1 groups, fsat = 0.28
+Iteration 7 of 10... 
+145357 groups, 127190 n = 1 groups, fsat = 0.28
+Iteration 8 of 10... 
+145348 groups, 127177 n = 1 groups, fsat = 0.28
+Iteration 9 of 10... 
+145348 groups, 127176 n = 1 groups, fsat = 0.28
+Iteration 10 of 10... 
+145348 groups, 127177 n = 1 groups, fsat = 0.28
+** Iterations complete! Writing output to file... **
+
+119.247 sec
+Initialization: 10.745000 seconds.
+Iteration reset 0.002200 seconds (avg).
+Iterative groupfinding: 2.186500 seconds (avg).
+Sorting + sham: 8.412700 seconds (avg).
+Output 2.488000 seconds.

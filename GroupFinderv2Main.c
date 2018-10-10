@@ -918,7 +918,6 @@ int main(int argc, char *argv[]){
 					}
 				}
 			}
-printf("%d\n",i);
 		}
 		for(i = 1; i <= nsample; ++i){
 			for(j = 1; j <= ngrp; ++j)
@@ -946,10 +945,10 @@ printf("%d\n",i);
 
 	ff = "/home/users/ma5046/groupsv2.csv";
 	fp = fopen(ff,"w");
-	fprintf(fp,"igrp,ra,dec,redshift,group_center,nsat,group_luminosity,mass,rad,sigma,angRad,prob_total\n");
+	fprintf(fp,"# igrp,ra,dec,redshift,group_center,nsat,group_luminosity,mass,rad,sigma,angRad,prob_total\n");
 	for(i = 1; i <= nsample; ++i){
 		j = indx[i];
-		fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", igrp, ra[j], dec[j], redshift[j], group_center[j], nsat_indi[j], group_luminosity[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
+		fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f\n", igrp, ra[j]/(pi/180), dec[j]/(pi/180), redshift[j], group_center[j], nsat_indi[j], group_luminosity[j], mass[j], rad[j], sigma[j], angRad[j], prob_total[j]);
 	}
 	fclose(fp);
 }

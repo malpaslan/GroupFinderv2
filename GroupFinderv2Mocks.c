@@ -588,17 +588,17 @@ int main(int argc, char **argv){
 
       //ff = outpath_grp;
       fp = fopen(outpath_grp,"w");
-      fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
+      fprintf(fp,"# groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
       for(i = 1; i <= ngrp; ++i){
         j = group_index[i];
         k = group_center[j];
-        fprintf(fp,"%d %f %f %f %d %f %f %f %f %f %f %f %f %d %f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],distToBig[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, ra[k]/(pi/180), dec[k]/(pi/180), redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],distToBig[k],HaloID[k],m_halo[k]);
       }
       fclose(fp);
 
       //ff = outpath_gal;
       fp = fopen(outpath_gal,"w");
-      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,psat,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass\n");
+      fprintf(fp,"# galID,ra,dec,redshift,Mstellar,groupID,psat,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass\n");
       
       // Need output to be in the original order.
 
@@ -615,7 +615,7 @@ int main(int argc, char **argv){
         if(k != j)
             theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-        fprintf(fp,"%d %f %f %f %f %d %f %d %f %f %f %f %f %f %d %d %f\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f\n", k, ra[k]/(pi/180), dec[k]/(pi/180), redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k]);
 
       }
       fclose(fp);

@@ -686,7 +686,7 @@ int main(int argc, char **argv){
 
       ff = "/home/users/ma5046/misc_work/output/bolshoiz01cGroupsOMP.csv";
       fp = fopen(ff,"w");
-      fprintf(fp,"groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
+      fprintf(fp,"# groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
       for(i = 1; i <= ngrp; ++i){
         j = group_index[i];
         k = group_center[j];
@@ -696,7 +696,7 @@ int main(int argc, char **argv){
 
       ff = "/home/users/ma5046/misc_work/output/bolshoiz01cGalsOMP.csv";
       fp = fopen(ff,"w");
-      fprintf(fp,"galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
+      fprintf(fp,"# galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
       for(i = 1; i <= nsample; ++i){
         
         k = indx[i];
@@ -708,7 +708,7 @@ int main(int argc, char **argv){
         if(k != j)
             theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
 
-        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f,%d\n", k, ra[k], dec[k], redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k],color_flag[k]);
+        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f,%d\n", k, ra[k]/(pi/180), dec[k]/(pi/180), redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k],color_flag[k]);
 
       }
       fclose(fp);
