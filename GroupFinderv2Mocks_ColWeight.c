@@ -1,4 +1,4 @@
-// As GroupFinderv2, but designed to run on mock catalogue. Modified to include a weighting factor to upscale or downscale stellar masses of red centrals.
+// As GroupFinderv2, but designed to run on mock catalogue. Modified to include a weighting factor to upscale or downscale stellar masses of red centrals and satellites.
 
 // For self: compile command --
 // gcc -o gfv2mockCol GroupFinderv2Mocks_ColWeight.c *.o -L/home/users/ma5046/libC_main -lC_main -lm
@@ -123,7 +123,7 @@ int main(int argc, char **argv){
   startall = clock();
   start1 = clock();
   count = 0;
-  niter_max = 10;
+  niter_max = atoi(argv[1]);
   
   zone2t = zone3t = zone4t = 0.0;
   zone2 = vector(1, niter_max);
@@ -167,7 +167,7 @@ int main(int argc, char **argv){
   // Assign count to ngal; this is the number of galaxies.
   
   ngal = count;
-  printf("Red weight is %f\n",atof(argv[1]));
+  printf("Red weight is %f\n",atof(argv[2]));
   // Each variable that holds a different galaxy property can now be made into an array going from 1 to ngal.
 
   ra = vector(1,ngal);
@@ -441,7 +441,7 @@ int main(int argc, char **argv){
     // This is where we insert the weighting factor. If the central galaxy is red, apply the red weight to its stellar mass.
 
     if(color_flag[i] == 1) 
-      red_weight = atof(argv[1]);
+      red_weight = atof(argv[2]);
     else 
       red_weight = 1.0;
     group_mass[igrp] = m_stellar[i]*red_weight;
@@ -533,7 +533,7 @@ int main(int argc, char **argv){
       // Apply red weighting again.
 
       if(color_flag[i] == 1) 
-        red_weight = atof(argv[1]);
+        red_weight = atof(argv[2]);
       else 
         red_weight = 1.0;
       group_mass[igrp] = m_stellar[i] * red_weight;

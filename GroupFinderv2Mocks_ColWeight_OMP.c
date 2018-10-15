@@ -1,9 +1,11 @@
-// As GroupFinderv2, but designed to run on mock catalogue. Modified to include a weighting factor to upscale or downscale stellar masses of red centrals.
+// As GroupFinderv2, but designed to run on mock catalogue. Modified to include a weighting factor to upscale or downscale stellar masses of red centrals and satellites.
 
 // For self: compile command --
 // gcc -o gfv2mockColOMP GroupFinderv2Mocks_ColWeight_OMP.c *.o -L/home/users/ma5046/libC_main -lC_main -lm -fopenmp
 //
 // Initialization //
+
+// Call as ./gfv2mockColOMP niter rw1 rw2 sw1 sw2 where *w1 and *w2 are the y-intercept and gradient of the linear functions regulating the red weights for centrals (r) and satellites (s).
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -127,7 +129,7 @@ int main(int argc, char **argv){
   startall = get_msec();
   startinit = get_msec();
   count = 0;
-  niter_max = 10;
+  niter_max = atof(argv[1]);
 
   zone1 = vector(1, niter_max);
   zone2 = vector(1, niter_max);
@@ -170,8 +172,8 @@ int main(int argc, char **argv){
   // Assign count to ngal; this is the number of galaxies.
 
   ngal = count;
-  printf("Central red weight is %fx + %f\n",atof(argv[2]), atof(argv[1]));
-  printf("Satellite red weight is $fx + $f\n", atof(argv[4]), atof(argv[3]));
+  printf("Central red weight is %fx + %f\n",atof(argv[3]), atof(argv[2]));
+  printf("Satellite red weight is %fx + %f\n", atof(argv[5]), atof(argv[4]));
   // Each variable that holds a different galaxy property can now be made into an array going from 1 to ngal.
 
   ra = vector(1,ngal);
@@ -408,8 +410,8 @@ int main(int argc, char **argv){
   // Now go through and find associated galaxies.
   // Send satellite color arguments to these floats, to then feed to find_satellites.
   
-  sw1 = atof(argv[4]);
-  sw2 = atof(argv[3]);
+  sw1 = atof(argv[5]);
+  sw2 = atof(argv[4]);
 
   printf("** Identifying satellites...\n\n");
 
@@ -464,7 +466,7 @@ int main(int argc, char **argv){
       // This is where we insert the weighting factor. If the central galaxy is red, apply the red weight to its stellar mass.
 
       if(color_flag[i] == 1) 
-        red_weight = (atof(argv[2]) * log10(m_stellar[i])) + atof(argv[1]);
+        red_weight = (atof(argv[3]) * log10(m_stellar[i])) + atof(argv[2]);
       else 
         red_weight = 1.0;
       group_mass[igrp] = m_stellar[i] * red_weight;
@@ -565,7 +567,7 @@ int main(int argc, char **argv){
         // Apply red weighting again.
 
         if(color_flag[i] == 1) 
-          red_weight = (atof(argv[2]) * log10(m_stellar[i])) + atof(argv[1]);
+          red_weight = (atof(argv[3]) * log10(m_stellar[i])) + atof(argv[2]);
         else 
           red_weight = 1.0;
         
