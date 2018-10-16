@@ -8,4 +8,6 @@ Please note that the k-d tree code being used comes from John Tsiombikas <nuclea
 
 # Setup
 
-Everything you need should be in the src folder. Use make all to compile everything.
+Everything you need should be in the src folder. Make sure you have downloaded and set up my C library (https://github.com/malpaslan/libC_main). You'll need to edit paths in the Makeile.
+
+Use make all to compile everything.
