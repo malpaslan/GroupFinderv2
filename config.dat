@@ -1,0 +1,10 @@
+// Sample configuration file for groupfinder.
+
+// input file (csv):			"/home/users/ma5046/misc_work/mocks/bolshoiColor_input.csv"	
+// RA column (deg):			1	
+// DEC column (deg):			2
+// z column (deg):			3	
+// abundance match column:		4
+// weighting column 1:			5
+// weighting column 2:			6
+

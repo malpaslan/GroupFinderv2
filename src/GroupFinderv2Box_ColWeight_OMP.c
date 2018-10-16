@@ -1,11 +1,11 @@
 // As GroupFinderv2, but designed to run on mock catalogue. Modified to include a weighting factor to upscale or downscale stellar masses of red centrals and satellites.
 
+// This version runs on a periodic box.
+
 // For self: compile command --
-// gcc -o gfv2mockColOMP GroupFinderv2Mocks_ColWeight_OMP.c *.o -L/home/users/ma5046/libC_main -lC_main -lm -fopenmp
+// gcc -o gfv2BoxColOMP GroupFinderv2Box_ColWeight_OMP.c *.o -L/home/users/ma5046/libC_main -lC_main -lm -fopenmp
 //
 // Initialization //
-
-// Call as ./gfv2mockColOMP niter rw1 rw2 sw1 sw2 where *w1 and *w2 are the y-intercept and gradient of the linear functions regulating the red weights for centrals (r) and satellites (s).
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -35,10 +35,11 @@
 #define third (1.0/3.0)
 #define ang (pi/180.0)
 #define rt2Pi 2.50663
-#define czMax 25502.0
-#define czMin 6001.0
+//#define czMax 25502.0
+//#define czMin 6001.0
 #define czBuf 0
 #define CHUNKSIZE 10000
+#define BOX_SIZE 250
 //#define REDSHIFT (12000.0/SPEED_OF_LIGHT)// -18
 //#define MAGNITUDE -18.0
 //#define REDSHIFT (19200.0/SPEED_OF_LIGHT)// -19
@@ -67,13 +68,12 @@ float density2host_halo(float galaxy_density);
 
 // Local functions go here
 
+float rdist(float *a1, float *a2, int dim);
 float distance_redshift(float z);
 float angular_separation(float a1, float d1, float a2, float d2);
-float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_flag, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float cenDist, float range, float sw1, float sw2);
+float find_satellites(int i, float *xCoord, float *yCoord, float *zCoord, int *color_flag, float theta_max, float x1, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float range, float sw1, float sw2);
 float radial_probability(float mass, float dr, float rad, float ang_rad);
-int iter_central_galaxy(int galID, float *ra, float *dec, float *redshift ,int *group_member, int ngal, int igrp, float *m_stellar, float *massDist);
-float segvol(float lorad, float hirad, float lodec, float hidec, float lora, float hira);
-float segarea(float lorad, float hirad, float lodec, float hidec, float lora, float hira);
+int iter_central_galaxy(int galID, float *xCoord, float *yCoord, float *zCoord ,int *group_member, int ngal, int igrp, float *m_stellar, float *massDist);
 
 //static double dist_sq( double *a1, double *a2, int dims );
 
@@ -92,7 +92,7 @@ unsigned int get_msec(void)
 
 // Global variables go here
 
-float GALAXY_DENSITY, MAGNITUDE, MAXREDSHIFT, MINREDSHIFT;
+float GALAXY_DENSITY, MAGNITUDE;
 
 // End initialization //
 
@@ -106,8 +106,8 @@ int main(int argc, char **argv){
   int nsat_tot, ngrp, niter, niter_max, ngrp_temp;
   int chunk = CHUNKSIZE;
 
-  float *ra, *dec, *redshift, *m_stellar, *m_halo;
-  float *mass, *rad, *angRad, *sigma, *prob_total, *nsat, maxMass, *cenDist, *range, sw1, sw2;
+  float *xCoord, *yCoord, *zCoord, *m_stellar, *m_halo;
+  float *mass, *rad, *angRad, *sigma, *prob_total, *nsat, maxMass, cenDist, *range, sw1, sw2;
   float *group_mass, *distToBig;
   float x1, x2, *tempArray;
   float volume;
@@ -135,24 +135,23 @@ int main(int argc, char **argv){
   zone2 = vector(1, niter_max);
   zone3 = vector(1, niter_max);
 
-  MAXREDSHIFT = czMax / speedOfLight;
-  MINREDSHIFT = czMin / speedOfLight;
-  MAGNITUDE = -19.0;
+  MAGNITUDE = -19;
   //MSTARLIM = pow(10.0,15);
   x1 = x2 = 0;
 
-  volume = segvol(distance_redshift(MINREDSHIFT),distance_redshift(MAXREDSHIFT), 0, 90, 0, 90);
+  // Volume of box?
+  volume = pow(BOX_SIZE,3);
   
-  printf("Magitude: %f\nMin redshift: %f\nMax redshift: %f\nVolume: %e\n",MAGNITUDE,MINREDSHIFT,MAXREDSHIFT,volume);
+  printf("Magitude: %f\nVolume: %e\n",MAGNITUDE,volume);
 
   // Start by reading in data. At first only read in bare minimum to establish a volume limited sample; then read in everything else.
 
   printf("\n** Reading in data and defining sample. **\n");
 
-  // Import mock catalogue (RA, Dec, z). 
+  // Import mock catalogue (x, y, z coordinates). 
   // Measure length of this catalogue; this is the total number of galaxies. Apply this length to the arrays containing redshift, magnitude, and mass.
   //
-  ff = "/home/users/ma5046/misc_work/mocks/sham_colormock_redshift0.3_sig0.1.rdz";
+  ff = "/home/users/ma5046/misc_work/mocks/boxMock.csv";
   
   fp = fopen(ff,"r");
   if(!(fp=fopen(ff,"r"))){
@@ -172,13 +171,12 @@ int main(int argc, char **argv){
   // Assign count to ngal; this is the number of galaxies.
 
   ngal = count;
-  printf("Central red weight is %fx + %f\n",atof(argv[3]), atof(argv[2]));
-  printf("Satellite red weight is %fx + %f\n", atof(argv[5]), atof(argv[4]));
+  
   // Each variable that holds a different galaxy property can now be made into an array going from 1 to ngal.
 
-  ra = vector(1,ngal);
-  dec = vector(1,ngal);
-  redshift = vector(1,ngal);
+  xCoord = vector(1,ngal);
+  yCoord = vector(1,ngal);
+  zCoord = vector(1,ngal);
   m_stellar = vector(1, ngal);
   m_halo = vector(1, ngal);
   central_flag = ivector(1, ngal);
@@ -194,10 +192,8 @@ int main(int argc, char **argv){
     if(i == 1)
       fgets(string,1000,fp);
 
-    fscanf(fp,"%f %f %f %f %f %d %d %d",&ra[i],&dec[i],&redshift[i], &m_stellar[i], &m_halo[i], &HaloID[i], &central_flag[i], &color_flag[i]);
+    fscanf(fp,"%f,%f,%f,%f,%f,%d,%d,%d",&xCoord[i],&yCoord[i],&zCoord[i], &m_stellar[i], &m_halo[i], &HaloID[i], &central_flag[i], &color_flag[i]);
     GalID[i] = i;
-    ra[i] *= pi/180;
-    dec[i] *= pi/180;
     indx[i] = i;
     m_stellar[i] = pow(10.0,m_stellar[i]);
     fgets(string,1000,fp);
@@ -206,15 +202,9 @@ int main(int argc, char **argv){
   fclose(fp);
   printf("Mock data read in.\n");
 
-  // Now have enough data to make a volume limited sample.
-  // Start by identifying how many galaxies are in this sample. Assign this length to all remaining data arrays.
+  // This is a box, so no need to resample, make volume limited sample, etc. 
 
-  count = 0;
-  for(i = 1; i <= ngal; ++i){
-    if(redshift[i] <= MAXREDSHIFT && redshift[i] >= MINREDSHIFT){
-      count++;
-    }
-  }
+  count = ngal;
 
   nsample = count;
   printf("%d %d\n",ngal,nsample);
@@ -235,80 +225,10 @@ int main(int argc, char **argv){
   group_index = ivector(1, nsample);
   group_center = ivector(1, nsample);
 
-  // Before proceeding, go back through and truncate existing arrays to only contain galaxies from the volume limited sample.
+     // Finished importing data!
 
-  float *temp_ra,*temp_dec,*temp_redshift,*temp_m_stellar, *temp_m_halo;
-  int *temp_indx, *temp_HaloID, *temp_central_flag, *temp_origGalID, *temp_color_flag;
-
-  temp_ra = vector(1, nsample);
-  temp_dec = vector(1, nsample);
-  temp_redshift = vector(1, nsample);
-  temp_m_stellar = vector(1, nsample);
-  temp_m_halo = vector(1, nsample);
-  temp_indx = ivector(1, nsample);
-  temp_HaloID = ivector(1, nsample);
-  temp_origGalID = ivector(1, nsample);
-  temp_central_flag = ivector(1, nsample);
-  temp_color_flag = ivector(1, nsample);
-
-    j = 1;
-    for(i = 1; i <= ngal; ++i){
-      if(redshift[i] <= MAXREDSHIFT && redshift[i] >= MINREDSHIFT){
-        temp_ra[j] = ra[i];
-        temp_dec[j] = dec[i];
-        temp_redshift[j] = redshift[i];
-        temp_m_stellar[j] = m_stellar[i];
-        temp_m_halo[j] = m_halo[i];
-        temp_HaloID[j] = HaloID[i];
-        temp_central_flag[j] = central_flag[i];
-        temp_color_flag[j] = color_flag[i];
-        temp_origGalID[j] = GalID[i];
-        temp_indx[j] = j;
-        ++j;
-      }
-    }
-
-    free(ra);
-    free(dec);
-    free(redshift);
-    free(m_stellar);
-    free(m_halo);
-    free(HaloID);
-    free(central_flag);
-    free(color_flag);
-    free(indx);
-    free(GalID);
-
-    ra = vector(1,nsample);
-    dec = vector(1,nsample);
-    redshift = vector(1,nsample);
-    m_stellar = vector(1, nsample);
-    m_halo = vector(1, nsample);
-    HaloID = ivector(1, nsample);
-    central_flag = ivector(1, nsample);
-    color_flag = ivector(1, nsample);
-    indx = ivector(1, nsample);
-    GalID = ivector(1,nsample);
-
-    indx = temp_indx;
-    ra = temp_ra;
-    dec = temp_dec;
-    redshift = temp_redshift;
-    for(i = 1; i <= nsample; ++i)
-      redshift[i] *= speedOfLight;
-    m_stellar = temp_m_stellar;
-    m_halo = temp_m_halo;
-    HaloID = temp_HaloID;
-    GalID = temp_origGalID;
-    central_flag = temp_central_flag;
-    color_flag = temp_color_flag;
-
-    // Whew, all done. Now clear variables and proceed. This whole process should result in a series of arrays of length nsample that only contain galaxies in a volume limited sample.
-
-    // Finished importing data!
-
-    printf("** Finished reading in data! Sample defined. **\n\n");
-    printf("%d galaxies with %.5f < z < %.5f.\n",nsample,MINREDSHIFT,MAXREDSHIFT);
+    printf("** Finished reading in data! \n\n");
+    printf("%d galaxies.\n",nsample);
     printf("Vol %e\n\n",volume);
 
     // Correct sSFR, Dn4000, and Hdelta for fibre collisions. Check fiber_corrected_galaxy_property.c for details.
@@ -343,11 +263,11 @@ int main(int argc, char **argv){
 
     sort2(nsample, tempArray, indx);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
-    sort3(nsample, tempArray, ra);
+    sort3(nsample, tempArray, xCoord);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
-    sort3(nsample, tempArray, dec);
+    sort3(nsample, tempArray, yCoord);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
-    sort3(nsample, tempArray, redshift);
+    sort3(nsample, tempArray, zCoord);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
     sort3(nsample, tempArray, m_halo);
     for(i = 1; i <= nsample; ++i) tempArray[i] = m_stellar[i];
@@ -365,29 +285,14 @@ int main(int argc, char **argv){
       m_stellar[i] = -m_stellar[i];
     }
 
-    // While we're at it, compute distances to each galaxy too. This makes life easier later with OpenMP.
+    // Create some vectors and variables for OpenMP. Most likely obsolete now that code is for a box.
     
-    cenDist = vector(1, nsample);
+    cenDist = 1.0;
     range = vector(1, nsample);
-    
-    for(i = 1; i <= nsample; ++i){
-      cenDist[i] = distance_redshift(redshift[i]/speedOfLight);
-    }
 
     printf("** Sorting complete! **\n\n");
 
-    // ** UNCOMMENT BELOW TO OUTPUT A FILE WITH ALL THE DATA THAT HAS BEEN READ IN **
-
-   //  fp = fopen("/Users/mehmet/Desktop/v2in.dat","w");
-    // fprintf(fp,"ra,dec,redshift,mag_r,mag_g,v_max,m_stellar,Hdelta,ka,Rexp,Dn4000,sSFR,sersic,collision,velDisp,petroRad\n");
-    // for(i = 1; i <= nsample; ++i){
-      // fprintf(fp,"%f,%f,%f,%f,%f,%f,%f,%f,%d,%f,%f,%f,%f,%d,%f,%f\n", ra[i],dec[i],redshift[i], mag_r[i], mag_g[i], v_max[i],m_stellar[i],Hdelta[i],ka[i],Rexp[i],Dn4000[i],sSFR[i],sersic[i],collision[i],velDisp[i],petroRad[i]);
-    // }
-    // fclose(fp);
-
-    // ** UNCOMMENT ABOVE TO OUTPUT A FILE WITH ALL THE DATA THAT HAS BEEN READ IN **
-
-  // Cycle through each galaxy and assign a halo mass to it. This part of the code calls up the density2halo function, which does SHAM to assign a halo mass to each galaxy.
+    // Cycle through each galaxy and assign a halo mass to it. This part of the code calls up the density2halo function, which does SHAM to assign a halo mass to each galaxy.
 
   // This is the initial first pass assignment of masses to galaxies
 
@@ -398,9 +303,9 @@ int main(int argc, char **argv){
       ndens_gal += 1/volume;
       mass[i] = density2halo(ndens_gal);
       rad[i] = pow((3*mass[i]) / (4.0 * pi * dHalo *rhoCrit * omegaM), third);
-      angRad[i] = rad[i] / distance_redshift(redshift[i]/speedOfLight);
-      sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i])*(1+redshift[i]/speedOfLight));
-      range[i] = distance_redshift(4.0*sigma[i]/speedOfLight);
+      angRad[i] = rad[i];
+      sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i]));
+      range[i] = 4.0*rad[i];
     }
     
   printf("** SHAMmed galaxies. **\n\n");
@@ -410,8 +315,8 @@ int main(int argc, char **argv){
   // Now go through and find associated galaxies.
   // Send satellite color arguments to these floats, to then feed to find_satellites.
   
-  sw1 = atof(argv[5]);
-  sw2 = atof(argv[4]);
+  sw1 = atof(argv[4]);
+  sw2 = atof(argv[3]);
 
   printf("** Identifying satellites...\n\n");
 
@@ -428,10 +333,9 @@ int main(int argc, char **argv){
     names = ivector(1, nsample);
 
     for(i = 1; i <= nsample; ++i){
-      radius = distance_redshift(redshift[i]/speedOfLight);
-      x = radius * cos(ra[i]) * cos(dec[i]);
-      y = radius * sin(ra[i]) * cos(dec[i]); 
-      z = radius * sin(dec[i]);
+      x = xCoord[i];
+      y = yCoord[i]; 
+      z = zCoord[i];
       names[i] = i;
 
       double pt[3] = {x, y, z};
@@ -452,10 +356,10 @@ int main(int argc, char **argv){
     group_member[i] = 0;
   }
 
-  //#pragma omp parallel num_threads (24) default(shared) private(i)
+  //#prgma omp parallel num_threads (24) default(shared) private(i)
   //{
   //  #pragma omp for schedule (dynamic, chunk)
-     
+  
   //start = get_msec();
     for(i = 1; i <= nsample; ++i){
       
@@ -466,18 +370,20 @@ int main(int argc, char **argv){
       // This is where we insert the weighting factor. If the central galaxy is red, apply the red weight to its stellar mass.
 
       if(color_flag[i] == 1) 
-        red_weight = (atof(argv[3]) * log10(m_stellar[i])) + atof(argv[2]);
+        red_weight = (atof(argv[2]) * log10(m_stellar[i])) + atof(argv[1]);
       else 
         red_weight = 1.0;
       group_mass[igrp] = m_stellar[i] * red_weight;
        
       group_center[igrp] = i;
       group_member[i] = igrp;
-
-      group_mass[igrp] += find_satellites(i, ra, dec, redshift, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar,&nsat[i],prob_total, kd, cenDist[i], range[i], sw1, sw2);
+       
+      group_mass[igrp] += find_satellites(i, xCoord, yCoord, zCoord, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar,&nsat[i],prob_total, kd, range[i], sw1, sw2);
+      
       if(nsat[i] < 1)
         k++;
       nsat_tot += nsat[i];
+      
     }
   //}
   //msec = get_msec() - start;
@@ -501,9 +407,9 @@ int main(int argc, char **argv){
     // skip if j i satellite, then go to ncount for density
     mass[i] = density2host_halo(i/volume);
     rad[i] = pow(3*mass[i]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
-    angRad[i] = rad[i]/distance_redshift(redshift[i]/speedOfLight);
-    sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i])*(1+redshift[i]/speedOfLight));
-    range[i] = distance_redshift(4.0*sigma[i]/speedOfLight);
+    angRad[i] = rad[i];
+    sigma[i] = sqrt((bigG*mass[i])/(2.0*rad[i]));
+    range[i] = 4.0*rad[i];
   }
 
   printf("** SHAMmed groups! Now iterating to convergence... ** \n\n");
@@ -567,7 +473,7 @@ int main(int argc, char **argv){
         // Apply red weighting again.
 
         if(color_flag[i] == 1) 
-          red_weight = (atof(argv[3]) * log10(m_stellar[i])) + atof(argv[2]);
+          red_weight = (atof(argv[2]) * log10(m_stellar[i])) + atof(argv[1]);
         else 
           red_weight = 1.0;
         
@@ -575,7 +481,7 @@ int main(int argc, char **argv){
         group_member[i] = igrp;
         group_center[igrp] = i;
 
-        group_mass[igrp] += find_satellites(i, ra, dec, redshift, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, cenDist[i], range[i], sw1, sw2);
+        group_mass[igrp] += find_satellites(i, xCoord, yCoord, zCoord, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, range[i], sw1, sw2);
 
         if(nsat[i] == 0)
           k++;
@@ -608,7 +514,7 @@ int main(int argc, char **argv){
 
         nsat[i] = 0;
 
-        group_mass[igrp] += find_satellites(i, ra, dec, redshift, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, cenDist[i], range[i], sw1, sw2);
+        group_mass[igrp] += find_satellites(i, xCoord, yCoord, zCoord, color_flag, angRad[i], sigma[i], group_member, indx, nsample, rad[i], mass[i], igrp, m_stellar, &nsat[i], prob_total, kd, range[i], sw1, sw2);
 
         if(nsat[i] == 0)
           k++;
@@ -657,8 +563,8 @@ int main(int argc, char **argv){
 
       mass[k] = density2host_halo(i/volume);
       rad[k] = pow(3*mass[k]/(4.*pi*dHalo*rhoCrit*omegaM),1.0/3.0);
-      angRad[k] = rad[k]/distance_redshift(redshift[k]/speedOfLight);
-      sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k])*(1+redshift[k]/speedOfLight));
+      angRad[k] = rad[k];
+      sigma[k] = sqrt((bigG*mass[k])/(2.0*rad[k]));
       //range[k] = distance_redshift(4.0*sigma[k]/speedOfLight);
       //printf("BGH%d %f %f\n",niter,mass[k],group_mass[i]);
      
@@ -686,19 +592,19 @@ int main(int argc, char **argv){
       startout = get_msec();
       printf("** Iterations complete! Writing output to file... **\n\n");
 
-      ff = "/home/users/ma5046/misc_work/output/bolshoiz01cGroupsOMP.csv";
+      ff = "/home/users/ma5046/misc_work/output/bolshoiBoxGroupsOMP.csv";
       fp = fopen(ff,"w");
-      fprintf(fp,"# groupID,ra,dec,redshift,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
+      fprintf(fp,"# groupID,x,y,z,centralID,nsat,MSgroup,Mhalo,rad,sigma,angRad,Mcentral,massSep,HaloID,SimHaloMass\n");
       for(i = 1; i <= ngrp; ++i){
         j = group_index[i];
         k = group_center[j];
-        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, ra[k], dec[k], redshift[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],distToBig[k],HaloID[k],m_halo[k]);
+        fprintf(fp,"%d,%f,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%f\n", j, xCoord[k], yCoord[k], zCoord[k], k, nsat[k], group_mass[i], mass[k], rad[k], sigma[k], angRad[k],m_stellar[k],distToBig[k],HaloID[k],m_halo[k]);
       }
       fclose(fp);
 
-      ff = "/home/users/ma5046/misc_work/output/bolshoiz01cGalsOMP.csv";
+      ff = "/home/users/ma5046/misc_work/output/bolshoiBoxGalsOMP.csv";
       fp = fopen(ff,"w");
-      fprintf(fp,"# galID,ra,dec,redshift,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
+      fprintf(fp,"# galID,x,y,z,Mstellar,groupID,prob_total,centralID,Mhalo,Rhalo,angSep,projSep,massSep,MSgroup,SimGalID,HaloID,SimHaloMass,color\n");
       for(i = 1; i <= nsample; ++i){
         
         k = indx[i];
@@ -708,9 +614,9 @@ int main(int argc, char **argv){
         if(k == j)
           theta = 0;
         if(k != j)
-            theta = angular_separation(ra[k],dec[k],ra[j],dec[j]);
+            theta = sqrt(pow((xCoord[k] - xCoord[j]),2) + pow((yCoord[k] - yCoord[j]),2) + pow((zCoord[k] - zCoord[j]),2));
 
-        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f,%d\n", k, ra[k]/(pi/180), dec[k]/(pi/180), redshift[k]/speedOfLight, m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k],color_flag[k]);
+        fprintf(fp,"%d,%f,%f,%f,%f,%d,%f,%d,%f,%f,%f,%f,%f,%f,%d,%d,%f,%d\n", k, xCoord[k], yCoord[k], zCoord[k], m_stellar[k], igrp, prob_total[k], group_center[igrp], mass[group_center[igrp]], rad[group_center[igrp]],theta, theta/angRad[group_center[igrp]], distToBig[igrp],group_mass[igrp],GalID[k],HaloID[k],m_halo[k],color_flag[k]);
 
       }
       fclose(fp);
@@ -786,7 +692,7 @@ float radial_probability(float mass, float dr, float rad, float ang_rad){
 
 // This function uses the kdtree library written by John Tsiombikas <nuclear@member.fsf.org>.
 
-float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_flag, float theta_max, float sigma, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float cenDist, float range, float sw1, float sw2) {
+float find_satellites(int i, float *xCoord, float *yCoord, float *zCoord, int *color_flag, float theta_max, float sigma, int *group_member, int *indx, int ngal, float radius, float mass, int igrp, float *m_stellar, float *nsat_cur, float *prob_total, void *kd, float range, float sw1, float sw2) {
   int j, k, setSize;
   float dx, dy, dz, theta, prob_ang, prob_rad, grpMass, p0, sat_red_weight;
   void *set;
@@ -805,9 +711,9 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_
   
   
   //cenDist = distance_redshift(redshift[i]/speedOfLight);
-  cen[0] = cenDist * cos(ra[i]) * cos(dec[i]);
-  cen[1] = cenDist * sin(ra[i]) * cos(dec[i]); 
-  cen[2] = cenDist * sin(dec[i]);
+  cen[0] = xCoord[i];
+  cen[1] = yCoord[i]; 
+  cen[2] = zCoord[i];
 
   // Nearest neighbour search should go out to about 4*sigma, the velocity dispersion of the SHAMed halo.
   
@@ -851,24 +757,15 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_
     if(group_member[j]){
       continue;
     }
-
-    // dx = fabs(ra[i]-ra[j]);
-  //      if(dx>4*theta_max)
-  //        continue;
-  //      dy = fabs(dec[i]-dec[j]);
-  //      if(dy>4*theta_max)
-  //        continue;
-        dz = fabs(redshift[i] - redshift[j]);
-        // if(dz>6*sigma)
-        //  continue;
-        //printf("%d %f %f %d %f %f\n",i,ra[i],dec[i],j,ra[j],dec[j]);
-    theta = angular_separation(ra[i],dec[i],ra[j],dec[j]);
+    
+    theta = sqrt(pow((xCoord[i] - xCoord[j]),2) + pow((yCoord[i] - yCoord[j]),2) + pow((zCoord[i] - zCoord[j]),2));
     if(theta > theta_max){
       continue;
     }
 
     // Now determine the probability of being a satellite (both projected onto the sky, and along the line of sight).
-    
+    dz = zCoord[i] - zCoord[j];
+
     prob_ang = radial_probability(mass, theta, radius, theta_max);
     prob_rad = exp(-dz*dz/(2*sigma*sigma))*speedOfLight/(rt2Pi*sigma);
     
@@ -913,7 +810,7 @@ float find_satellites(int i, float *ra, float *dec, float *redshift, int *color_
   // vol_corr = 1-(0.5*erfc(dz/(root2*sigma)));
   // *nsat_cur /= vol_corr;
   // grpMass /= vol_corr;
- 
+
   return(grpMass);
 
 }
@@ -1164,21 +1061,12 @@ int iter_central_galaxy(int galID, float *ra, float *dec, float *redshift ,int *
 //   return dist_sq;
 // }
 
-float segvol(float lorad, float hirad, float lodec, float hidec, float lora, float hira){
-  float h, area, vol;
-  lodec *= pi/180;  
-  hidec *= pi/180;
-  h = sin(hidec) - sin(lodec);
-  area = 2*pi*((hira-lora)/360)*h;
-  vol = (((4./3.) * pi * pow(hirad, 3.)) * area/(4. * pi)) - (((4./3.) * pi * pow(lorad, 3.)) * area/(4. * pi));
-  return(vol);
+float rdist(float *a1, float *a2, int dims) {
+    float dist_sq = 0, diff;
+    while(--dims >= 0){
+      diff = a1[dims] - a2[dims];
+      dist_sq += diff*diff;
+    }
+    return dist_sq;
 }
 
-float segarea(float lorad, float hirad, float lodec, float hidec, float lora, float hira){
-  float h, area;
-  lodec *= pi/180;
-  hidec *= pi/180;
-  h = sin(hidec) - sin(lodec);
-  area = 2*pi*((hira-lora)/360)*h;
-  return(area);
-}

@@ -130,14 +130,14 @@ int main(int argc, char **argv){
   startinit = get_msec();
   count = 0;
   niter_max = atoi(argv[1]);
-
+  ;
   zone1 = vector(1, niter_max);
   zone2 = vector(1, niter_max);
   zone3 = vector(1, niter_max);
 
   MAXREDSHIFT = czMax / speedOfLight;
   MINREDSHIFT = czMin / speedOfLight;
-  MAGNITUDE = -19.0;
+  MAGNITUDE = -19;
   //MSTARLIM = pow(10.0,15);
   x1 = x2 = 0;
 
