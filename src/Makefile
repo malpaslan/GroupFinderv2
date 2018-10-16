@@ -17,11 +17,18 @@ OBJ = $(patsubst %, $(ODIR)/%,$(_OBJ))
 _DEPS = kdtree.h header.h nrutil.h
 DEPS = $(patsubst %, $(IDIR)/%,$(_DEPS))
 
+# Executable list.
+
+EXECS = GroupFinderv2Main GroupFinderv2Mocks GroupFinderv2Mocks_ColWeight GroupFinderv2Mocks_ColWeight_OMP GroupFinderv2Box_ColWeight_OMP GroupFinderv2_2MRS
+
 # Build object files.
 $(ODIR)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 # Compile groupfinding codes.
+.PHONY: all
+
+all: $(EXECS) 
 
 GroupFinderv2Main: GroupFinderv2Main.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
