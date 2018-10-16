@@ -32,27 +32,27 @@ all: $(EXECS)
 
 GroupFinderv2Main: GroupFinderv2Main.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-	cp -f $@ $(HOME)/$@
+	mv -f $@ $(HOME)/$@
 
 GroupFinderv2Mocks: GroupFinderv2Mocks.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-	cp -f $@ $(HOME)/$@
+	mv -f $@ $(HOME)/$@
 
 GroupFinderv2Mocks_ColWeight: GroupFinderv2Mocks_ColWeight.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-	cp -f $@ $(HOME)/$@
+	mv -f $@ $(HOME)/$@
 
 GroupFinderv2Mocks_ColWeight_OMP: GroupFinderv2Mocks_ColWeight_OMP.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-	cp -f $@ $(HOME)/$@
+	mv -f $@ $(HOME)/$@
 
 GroupFinderv2Box_ColWeight_OMP: GroupFinderv2Box_ColWeight_OMP.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-	cp -f $@ $(HOME)/$@
+	mv -f $@ $(HOME)/$@
 
 GroupFinderv2_2MRS: GroupFinderv2_2MRS.c $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-	cp -f $@ $(HOME)/$@
+	mv -f $@ $(HOME)/$@
 
 # Cleanup.
 .PHONY: clean
